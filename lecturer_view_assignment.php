@@ -3,20 +3,14 @@ session_start();
 require_once 'config/security.php';
 require_once 'config/database.php';
 
-if (
-    !isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['auth_complete']) ||
-    $_SESSION['role'] !== 'lecturer' ||
-    $_SESSION['auth_complete'] !== true
-) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/access.php';
+require_role('lecturer');
 
 $user_id = $_SESSION['user_id'];
-$assignment_id = $_GET['id'] ?? 0;
+$assignment_id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-if ($assignment_id === 0) {
-    die("Error: No assignment selected.");
+if ($assignment_id === false || $assignment_id === null) {
+    render_error(400, 'Bad Request', 'No valid assignment was selected.');
 }
 
 try {
@@ -26,10 +20,12 @@ try {
     $assignment = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$assignment) {
-        die("Error: Assignment not found or you do not have permission to view it.");
+        // Same response whether the id does not exist or belongs to another lecturer.
+        render_forbidden();
     }
 } catch (PDOException $e) {
-    die("Database Error: " . $e->getMessage());
+    error_log('lecturer_view_assignment: ' . $e->getMessage());
+    render_error(500, 'System Error', 'A system error occurred. Please try again later.');
 }
 ?>
 

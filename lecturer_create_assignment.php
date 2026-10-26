@@ -4,14 +4,8 @@ require_once 'config/security.php';
 require_once 'config/database.php';
 require_once 'config/upload.php'; 
 
-if (
-    !isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['auth_complete']) ||
-    $_SESSION['role'] !== 'lecturer' ||
-    $_SESSION['auth_complete'] !== true
-) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/access.php';
+require_role('lecturer');
 
 $message = '';
 $message_type = '';

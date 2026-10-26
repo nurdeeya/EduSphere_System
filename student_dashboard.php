@@ -4,14 +4,8 @@ require_once 'config/security.php';
 require_once 'config/database.php';
 
 // SR2: only fully authenticated (MFA-verified) students.
-if (
-    !isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['auth_complete']) ||
-    $_SESSION['role'] !== 'student' ||
-    $_SESSION['auth_complete'] !== true
-) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/access.php';
+require_role('student');
 
 $student_id = (int) $_SESSION['user_id'];
 
@@ -40,11 +34,13 @@ try {
                s.submitted_at AS submitted_at,
                (a.deadline < NOW()) AS is_past_deadline
         FROM assignments a
+        JOIN enrollments e
+               ON e.lecturer_id = a.created_by AND e.student_id = :enrolled_student_id
         LEFT JOIN submissions s
                ON s.assignment_id = a.id AND s.student_id = :student_id
         ORDER BY (a.deadline < NOW()) ASC, a.deadline ASC
     ");
-    $stmt->execute([':student_id' => $student_id]);
+    $stmt->execute([':student_id' => $student_id, ':enrolled_student_id' => $student_id]);
     $assignments = $stmt->fetchAll();
 } catch (PDOException $e) {
     error_log('student_dashboard: ' . $e->getMessage());
@@ -108,7 +104,7 @@ $pending = $total - $submitted;
 
         <section class="information">
             <?php if ($total === 0): ?>
-                <p class="muted">There are no assignments available yet.</p>
+                <p class="muted">There are no assignments available for your classes yet.</p>
             <?php else: ?>
                 <div class="table-wrap">
                     <table class="assignment-table">

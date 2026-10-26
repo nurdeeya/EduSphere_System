@@ -5,14 +5,8 @@ require_once 'config/database.php';
 require_once 'config/upload.php';
 
 // SR2: only fully authenticated (MFA-verified) students.
-if (
-    !isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['auth_complete']) ||
-    $_SESSION['role'] !== 'student' ||
-    $_SESSION['auth_complete'] !== true
-) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/includes/access.php';
+require_role('student');
 
 const SUBMISSION_UPLOAD_DIR = __DIR__ . '/uploads';
 const ALLOWED_SUBMISSION_EXT = ['pdf', 'docx', 'zip'];
@@ -24,8 +18,7 @@ $student_id = (int) $_SESSION['user_id'];
 // Strict integer casting of the assignment id (rejects "5abc", "1.5", "-1", arrays...).
 $assignment_id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 if ($assignment_id === false || $assignment_id === null) {
-    http_response_code(400);
-    exit('Error: Invalid assignment selected.');
+    render_error(400, 'Bad Request', 'No valid assignment was selected.');
 }
 
 function client_ip(): string
@@ -49,7 +42,7 @@ function format_remaining(int $seconds): string
 function fetch_assignment(PDO $pdo, int $assignment_id)
 {
     $stmt = $pdo->prepare("
-        SELECT id, title, description, file_path, deadline,
+        SELECT id, title, description, file_path, deadline, created_by,
                TIMESTAMPDIFF(SECOND, NOW(), deadline) AS seconds_left
         FROM assignments
         WHERE id = :id
@@ -76,13 +69,23 @@ try {
     $assignment = fetch_assignment($pdo, $assignment_id);
 } catch (PDOException $e) {
     error_log('student_view_assignment (assignment): ' . $e->getMessage());
-    http_response_code(500);
-    exit('A system error occurred. Please try again later.');
+    render_error(500, 'System Error', 'A system error occurred. Please try again later.');
 }
 
-if (!$assignment) {
-    http_response_code(404);
-    exit('Error: Assignment not found.');
+// SR2: the student must be enrolled with the lecturer who created this assignment.
+// One 403 for "does not exist" and "not enrolled" so ids cannot be enumerated.
+$allowed = false;
+if ($assignment) {
+    try {
+        $allowed = student_is_enrolled($pdo, $student_id, (int) $assignment['created_by']);
+    } catch (PDOException $e) {
+        error_log('student_view_assignment (enrolment): ' . $e->getMessage());
+        render_error(500, 'System Error', 'A system error occurred. Please try again later.');
+    }
+}
+if (!$allowed) {
+    audit_denied($pdo, $student_id, 'student_view_assignment id=' . $assignment_id . ' not enrolled or missing');
+    render_forbidden();
 }
 
 $message = '';
@@ -236,8 +239,7 @@ try {
     $submission = fetch_submission($pdo, $assignment_id, $student_id);
 } catch (PDOException $e) {
     error_log('student_view_assignment (render): ' . $e->getMessage());
-    http_response_code(500);
-    exit('A system error occurred. Please try again later.');
+    render_error(500, 'System Error', 'A system error occurred. Please try again later.');
 }
 
 $seconds_left = (int) $assignment['seconds_left'];

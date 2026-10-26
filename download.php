@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/security.php';
 require_once 'config/database.php';
+require_once __DIR__ . '/includes/access.php';
 
 // ---- Authentication: any fully authenticated (MFA-verified) student or lecturer.
 if (
@@ -34,10 +35,8 @@ function deny(PDO $pdo, int $user_id, string $details): void
     } catch (Throwable $e) {
         error_log('download deny log: ' . $e->getMessage());
     }
-    // One uniform response for "missing" and "not yours" so ids can't be enumerated.
-    http_response_code(404);
-    header('Content-Type: text/plain; charset=UTF-8');
-    exit('File not found or access denied.');
+    // One uniform 403 for "missing" and "not yours" so ids can't be enumerated.
+    render_forbidden();
 }
 
 function safe_name_part(string $value, string $fallback): string
@@ -59,9 +58,9 @@ if (!is_string($type) || !in_array($type, ['material', 'submission'], true) || $
 
 try {
     if ($type === 'material') {
-        // Lecturer material: any authenticated student or lecturer.
+        // Lecturer material: enrolled students and the lecturer who created it.
         $stmt = $pdo->prepare("
-            SELECT file_path, title
+            SELECT file_path, title, created_by
             FROM assignments
             WHERE id = :id AND file_path IS NOT NULL AND file_path <> ''
             LIMIT 1
@@ -71,6 +70,14 @@ try {
 
         if (!$row) {
             deny($pdo, $user_id, "material id=$id not found");
+        }
+        // SR2: students must be enrolled with the creator; only the creating lecturer may fetch it.
+        $allowed =
+            ($role === 'student'  && student_is_enrolled($pdo, $user_id, (int) $row['created_by'])) ||
+            ($role === 'lecturer' && (int) $row['created_by'] === $user_id);
+
+        if (!$allowed) {
+            deny($pdo, $user_id, "material id=$id forbidden for role=$role");
         }
         $stored_name   = $row['file_path'];
         $download_base = safe_name_part($row['title'], 'assignment_' . $id) . '_material';
