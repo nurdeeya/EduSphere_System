@@ -20,5 +20,5 @@
 //echo "Student 2 password hash:<br>";
 //echo password_hash('Aqilah_123', PASSWORD_DEFAULT);
 
-echo "Lecturer 3 password hash:<br>";
-echo password_hash('Hashim_9876', PASSWORD_DEFAULT);
+//echo "Lecturer 3 password hash:<br>";
+//echo password_hash('Hashim_9876', PASSWORD_DEFAULT);
