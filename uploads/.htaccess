@@ -1,0 +1,14 @@
+# SR3 / SR2: files in uploads/ are only served through download.php and
+# material_download.php, which check login, role and ownership first.
+# Block direct URL access and never execute scripts from this folder.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+Options -Indexes
