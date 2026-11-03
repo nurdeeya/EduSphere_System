@@ -2,10 +2,10 @@
 -- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1:3306
--- Generation Time: Nov 03, 2026 at 07:18 AM
--- Server version: 8.4.7
--- PHP Version: 8.2.29
+-- Host: localhost:3306
+-- Generation Time: Nov 03, 2026 at 03:21 PM
+-- Server version: 8.4.3
+-- PHP Version: 8.3.33
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -27,17 +27,15 @@ SET time_zone = "+00:00";
 -- Table structure for table `assignments`
 --
 
-DROP TABLE IF EXISTS `assignments`;
-CREATE TABLE IF NOT EXISTS `assignments` (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `assignments` (
+  `id` int UNSIGNED NOT NULL,
   `title` varchar(100) NOT NULL,
   `description` text,
   `file_path` varchar(255) DEFAULT NULL,
   `deadline` datetime NOT NULL,
   `created_by` int UNSIGNED NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `assignments`
@@ -55,16 +53,14 @@ INSERT INTO `assignments` (`id`, `title`, `description`, `file_path`, `deadline`
 -- Table structure for table `audit_logs`
 --
 
-DROP TABLE IF EXISTS `audit_logs`;
-CREATE TABLE IF NOT EXISTS `audit_logs` (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `audit_logs` (
+  `id` int UNSIGNED NOT NULL,
   `user_id` int UNSIGNED NOT NULL,
   `action` varchar(100) NOT NULL,
   `details` text,
   `ip_address` varchar(45) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `audit_logs`
@@ -87,13 +83,10 @@ INSERT INTO `audit_logs` (`id`, `user_id`, `action`, `details`, `ip_address`, `c
 -- Table structure for table `enrollments`
 --
 
-DROP TABLE IF EXISTS `enrollments`;
-CREATE TABLE IF NOT EXISTS `enrollments` (
+CREATE TABLE `enrollments` (
   `student_id` int UNSIGNED NOT NULL,
   `lecturer_id` int UNSIGNED NOT NULL,
-  `enrolled_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`student_id`,`lecturer_id`),
-  KEY `idx_lecturer` (`lecturer_id`)
+  `enrolled_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
@@ -111,18 +104,15 @@ INSERT INTO `enrollments` (`student_id`, `lecturer_id`, `enrolled_at`) VALUES
 -- Table structure for table `learning_materials`
 --
 
-DROP TABLE IF EXISTS `learning_materials`;
-CREATE TABLE IF NOT EXISTS `learning_materials` (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `learning_materials` (
+  `id` int UNSIGNED NOT NULL,
   `lecturer_id` int UNSIGNED NOT NULL,
   `title` varchar(150) NOT NULL,
   `description` varchar(1000) DEFAULT NULL,
   `file_path` varchar(255) NOT NULL,
   `file_size` int UNSIGNED NOT NULL,
-  `uploaded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_lecturer` (`lecturer_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `uploaded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `learning_materials`
@@ -138,16 +128,12 @@ INSERT INTO `learning_materials` (`id`, `lecturer_id`, `title`, `description`, `
 -- Table structure for table `login_attempts`
 --
 
-DROP TABLE IF EXISTS `login_attempts`;
-CREATE TABLE IF NOT EXISTS `login_attempts` (
-  `attempt_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `login_attempts` (
+  `attempt_id` bigint UNSIGNED NOT NULL,
   `ip_address` varchar(45) NOT NULL,
   `email_submitted` varchar(254) DEFAULT NULL,
   `was_successful` tinyint(1) NOT NULL DEFAULT '0',
-  `attempted_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`attempt_id`),
-  KEY `idx_ip_time` (`ip_address`,`attempted_at`),
-  KEY `idx_email_time` (`email_submitted`,`attempted_at`)
+  `attempted_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -156,17 +142,13 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
 -- Table structure for table `notifications`
 --
 
-DROP TABLE IF EXISTS `notifications`;
-CREATE TABLE IF NOT EXISTS `notifications` (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `notifications` (
+  `id` int UNSIGNED NOT NULL,
   `user_id` int UNSIGNED NOT NULL,
   `assignment_id` int UNSIGNED DEFAULT NULL,
   `message` varchar(255) NOT NULL,
   `is_read` tinyint(1) NOT NULL DEFAULT '0',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_user_read` (`user_id`,`is_read`),
-  KEY `fk_notification_assignment` (`assignment_id`)
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -175,19 +157,15 @@ CREATE TABLE IF NOT EXISTS `notifications` (
 -- Table structure for table `submissions`
 --
 
-DROP TABLE IF EXISTS `submissions`;
-CREATE TABLE IF NOT EXISTS `submissions` (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `submissions` (
+  `id` int UNSIGNED NOT NULL,
   `assignment_id` int UNSIGNED NOT NULL,
   `student_id` int UNSIGNED NOT NULL,
   `file_path` varchar(255) NOT NULL,
   `submitted_at` datetime NOT NULL,
   `status` enum('Submitted','Late') NOT NULL,
-  `remarks` text,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_assignment_student` (`assignment_id`,`student_id`),
-  KEY `idx_student` (`student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `remarks` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `submissions`
@@ -203,24 +181,20 @@ INSERT INTO `submissions` (`id`, `assignment_id`, `student_id`, `file_path`, `su
 -- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE IF NOT EXISTS `users` (
-  `user_id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE `users` (
+  `user_id` int UNSIGNED NOT NULL,
   `login_identifier` varchar(100) NOT NULL,
   `full_name` varchar(100) NOT NULL,
   `email` varchar(254) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
-  `role` enum('student','lecturer') NOT NULL DEFAULT 'student',
+  `role` enum('student','lecturer','admin') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'student',
   `failed_login_attempts` tinyint UNSIGNED NOT NULL DEFAULT '0',
   `locked_until` datetime DEFAULT NULL,
   `mfa_enabled` tinyint(1) NOT NULL DEFAULT '0',
   `mfa_secret` varchar(255) DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `email` (`email`),
-  UNIQUE KEY `login_identifier` (`login_identifier`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
@@ -232,7 +206,116 @@ INSERT INTO `users` (`user_id`, `login_identifier`, `full_name`, `email`, `passw
 (3, 'AhmadDanial', 'Ahmad Danial', 'Danial@gmail.com', '$2y$10$pJGqResjTxYkmwj6tM/vaOHlcV0AFINPYOkiRhMvl/y6h4vtDIcG6', 'lecturer', 0, NULL, 0, NULL, 1, '2026-10-20 17:49:03'),
 (4, 'KamalAbdul', 'Kamal Abdullah', 'Kamal@gmail.com', '$2y$10$7McwUQyhdJ3Dw227U.6QBe/.H.KR2BrUkY2bRSZQKy0umitS6b1Su', 'lecturer', 1, NULL, 0, NULL, 1, '2026-10-21 15:20:18'),
 (5, 'BSW12345678', 'Aqilah Balqis', 'Aqilah@gmail.com', '$2y$10$VhmJUJ0PbcyK/Ki4utgo4uIadRiq6fVr4lCYplSQ5gRhMBxx41XZm', 'student', 0, NULL, 0, NULL, 1, '2026-10-21 15:41:22'),
-(6, 'HashimBakar', 'Hashim Bakar', 'Hashim@gmail.com', '$2y$10$iKU6bbv.MOo7RBY/wVoV8eCVAitiu2XLMlRUh4FbeAm6Mwi89BXJG', 'lecturer', 0, NULL, 0, NULL, 1, '2026-10-21 15:55:32');
+(6, 'HashimBakar', 'Hashim Bakar', 'Hashim@gmail.com', '$2y$10$iKU6bbv.MOo7RBY/wVoV8eCVAitiu2XLMlRUh4FbeAm6Mwi89BXJG', 'lecturer', 0, NULL, 0, NULL, 1, '2026-10-21 15:55:32'),
+(7, 'admin.esphere', 'EduSphere Administrator', 'admin@edusphere.local', '$2y$10$kkd5JYQhjyCRx9EwTymKfeHlIUpFjCkE8Zpj0tI7zNfuFIDwaNijG', 'admin', 0, NULL, 1, 'XXV3LA7OL4DCGIW4WBWRLKU3KHB5AMT4', 1, '2026-11-03 14:02:06');
+
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `assignments`
+--
+ALTER TABLE `assignments`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `enrollments`
+--
+ALTER TABLE `enrollments`
+  ADD PRIMARY KEY (`student_id`,`lecturer_id`),
+  ADD KEY `idx_lecturer` (`lecturer_id`);
+
+--
+-- Indexes for table `learning_materials`
+--
+ALTER TABLE `learning_materials`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_lecturer` (`lecturer_id`);
+
+--
+-- Indexes for table `login_attempts`
+--
+ALTER TABLE `login_attempts`
+  ADD PRIMARY KEY (`attempt_id`),
+  ADD KEY `idx_ip_time` (`ip_address`,`attempted_at`),
+  ADD KEY `idx_email_time` (`email_submitted`,`attempted_at`);
+
+--
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user_read` (`user_id`,`is_read`),
+  ADD KEY `fk_notification_assignment` (`assignment_id`);
+
+--
+-- Indexes for table `submissions`
+--
+ALTER TABLE `submissions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_assignment_student` (`assignment_id`,`student_id`),
+  ADD KEY `idx_student` (`student_id`);
+
+--
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`user_id`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD UNIQUE KEY `login_identifier` (`login_identifier`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `assignments`
+--
+ALTER TABLE `assignments`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `audit_logs`
+--
+ALTER TABLE `audit_logs`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+
+--
+-- AUTO_INCREMENT for table `learning_materials`
+--
+ALTER TABLE `learning_materials`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `login_attempts`
+--
+ALTER TABLE `login_attempts`
+  MODIFY `attempt_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `submissions`
+--
+ALTER TABLE `submissions`
+  MODIFY `id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `users`
+--
+ALTER TABLE `users`
+  MODIFY `user_id` int UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- Constraints for dumped tables
