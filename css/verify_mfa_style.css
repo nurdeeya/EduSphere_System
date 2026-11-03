@@ -1,0 +1,180 @@
+* {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            background-color: #243b64;
+            font-family: Arial, Helvetica, sans-serif;
+            color: #243b64;
+        }
+
+        .mfa-card {
+            width: 100%;
+            max-width: 460px;
+            padding: 35px;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+            text-align: center;
+        }
+
+        .mfa-icon {
+            width: 65px;
+            height: 65px;
+            margin: 0 auto 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background-color: #e8eef8;
+            font-size: 30px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 26px;
+            color: #243b64;
+        }
+
+        .description {
+            margin: 0 0 24px;
+            color: #606b7c;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .account-card {
+            margin-bottom: 24px;
+            padding: 14px;
+            border: 1px solid #dce4f0;
+            border-radius: 10px;
+            background-color: #f7f9fc;
+            text-align: left;
+        }
+
+        .account-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #68758a;
+            font-size: 12px;
+        }
+
+        .account-value {
+            display: block;
+            overflow-wrap: anywhere;
+            color: #243b64;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .verification-section {
+            padding: 24px 18px;
+            border: 1px solid #dce4f0;
+            border-radius: 12px;
+            background-color: #ffffff;
+        }
+
+        .verification-section h2 {
+            margin: 0 0 10px;
+            font-size: 18px;
+            color: #243b64;
+        }
+
+        .verification-description {
+            margin: 0 0 20px;
+            color: #68758a;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .code-inputs {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .code-box {
+            width: 43px;
+            height: 52px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #243b64;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .code-box:focus {
+            border-color: #315da8;
+            box-shadow: 0 0 0 3px rgba(49, 93, 168, 0.12);
+        }
+
+        .verify-button {
+            width: 100%;
+            padding: 13px 18px;
+            border: none;
+            border-radius: 8px;
+            background-color: #243b64;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .verify-button:hover {
+            background-color: #182b4c;
+        }
+
+        .verify-button:focus-visible {
+            outline: 3px solid #8ba9e0;
+            outline-offset: 3px;
+        }
+
+        .error-message {
+            margin: 0 0 20px;
+            padding: 12px;
+            border: 1px solid #f1b7b7;
+            border-radius: 8px;
+            background-color: #fff0f0;
+            color: #a32121;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .help-text {
+            margin: 20px 0 0;
+            color: #68758a;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 400px) {
+            .mfa-card {
+                padding: 24px 16px;
+            }
+
+            .verification-section {
+                padding: 20px 10px;
+            }
+
+            .code-inputs {
+                gap: 6px;
+            }
+
+            .code-box {
+                width: 38px;
+                height: 48px;
+                font-size: 20px;
+            }
+        }

@@ -1,0 +1,100 @@
+/* css/lecturer_module_style.css - Lecturer Module pages.
+   Loaded AFTER lecturer_dashboard_style.css; reuses its colours (#243b64 navy, #64748b grey). */
+
+.lec-subnav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 22px;
+}
+.lec-subnav a {
+    padding: 9px 16px;
+    border-radius: 6px;
+    background: #fff;
+    color: #243b64;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+.lec-subnav a:hover { background: #e5eaf3; }
+.lec-subnav a.active { background: #243b64; color: #fff; }
+
+.information + .information,
+.lec-section + .lec-section { margin-top: 25px; }
+
+.lec-narrow { max-width: 680px; }
+
+/* Forms */
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-weight: bold; margin-bottom: 8px; color: #243b64; }
+.form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; font-family: inherit; }
+.form-control:focus { outline: none; border-color: #243b64; }
+.form-hint { font-size: 13px; color: #64748b; margin-top: 6px; line-height: 1.5; }
+.char-count { float: right; font-weight: normal; font-size: 12px; color: #94a3b8; }
+.btn-submit { background-color: #243b64; color: #fff; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 100%; margin-top: 10px; }
+.btn-submit:hover { background-color: #1a2c4c; }
+
+/* Buttons used in tables and cards */
+.btn-small { display: inline-block; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: bold; border: none; cursor: pointer; font-family: inherit; line-height: 1.4; }
+.btn-navy { background: #243b64; color: #fff; }
+.btn-navy:hover { background: #1a2c4c; }
+.btn-edit { background: #f59e0b; color: #fff; }
+.btn-edit:hover { background: #d97706; }
+.btn-danger { background: #fff; color: #b91c1c; border: 1px solid #fca5a5; }
+.btn-danger:hover { background: #fef2f2; }
+.btn-link-card { display: inline-block; padding: 10px 16px; background-color: #243b64; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: bold; margin-top: 4px; }
+.btn-link-card:hover { background-color: #1a2c4c; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.actions form { margin: 0; }
+
+/* Alerts */
+.alert { padding: 15px; border-radius: 6px; margin-bottom: 25px; line-height: 1.6; }
+.alert-error { background: #f8d7da; color: #721c24; }
+.alert-success { background: #d4edda; color: #155724; }
+.warning-box { background: #fff3cd; color: #856404; padding: 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; border: 1px solid #ffeeba; line-height: 1.6; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+.lec-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+.lec-table th, .lec-table td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; }
+.lec-table th { background-color: #f8fafc; color: #64748b; font-weight: bold; white-space: nowrap; }
+.lec-table td.num { font-variant-numeric: tabular-nums; }
+.lec-table a.title-link { color: #243b64; font-weight: bold; text-decoration: none; }
+.lec-table a.title-link:hover { text-decoration: underline; }
+.muted { color: #94a3b8; font-style: italic; }
+.small { font-size: 13px; color: #64748b; }
+
+/* Status badges */
+.badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: bold; white-space: nowrap; }
+.badge-ok { background: #dcfce7; color: #166534; }
+.badge-late { background: #fef3c7; color: #92400e; }
+.badge-missing { background: #fee2e2; color: #991b1b; }
+.badge-closed { background: #e2e8f0; color: #475569; }
+.badge-open { background: #dbeafe; color: #1e40af; }
+
+/* Summary numbers on submission / dashboard pages */
+.stat-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 25px; }
+.stat { background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.05); }
+.stat .label { font-size: 13px; color: #64748b; font-weight: bold; margin-bottom: 6px; }
+.stat .value { font-size: 26px; font-weight: bold; color: #243b64; font-variant-numeric: tabular-nums; }
+
+/* Detail box (view assignment) */
+.detail-box { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+.detail-label { font-size: 13px; color: #64748b; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+.detail-value { font-size: 16px; color: #1e293b; margin-bottom: 15px; line-height: 1.6; word-wrap: break-word; }
+
+/* Filter bar */
+.filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 10px; }
+.filter-bar .form-group { margin-bottom: 0; flex: 1 1 200px; }
+.filter-bar .btn-submit { width: auto; margin-top: 0; padding: 0 20px; height: 46px; font-size: 14px; }
+.filter-bar .form-control { height: 46px; padding-top: 0; padding-bottom: 0; }
+select.form-control { background: #fff; }
+
+.back-link { display: inline-block; margin-top: 20px; color: #64748b; text-decoration: none; }
+.back-link:hover { color: #243b64; }
+
+@media (max-width: 700px) {
+    .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lec-table th, .lec-table td { padding: 10px 8px; }
+}
