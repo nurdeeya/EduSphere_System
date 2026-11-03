@@ -210,7 +210,7 @@ $min_deadline = date('Y-m-d\TH:i');
                     <input type="text" id="title" name="title" class="form-control" maxlength="<?= LEC_TITLE_MAX ?>" value="<?= escape($old['title']) ?>" required>
                 </div>
                 <div class="form-group">
-                    <label for="description">Description <span class="char-count" data-for="description"></span></label>
+                    <label for="description">Description (Optional) <span class="char-count" data-for="description"></span></label>
                     <textarea id="description" name="description" class="form-control" rows="4" maxlength="<?= LEC_DESCRIPTION_MAX ?>"><?= escape($old['description']) ?></textarea>
                 </div>
                 <div class="form-group">

@@ -122,7 +122,6 @@ $h = static fn($s): string => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8')
                     Create assignments, set deadlines and
                     review student submissions.
                 </p>
-                <a href="lecturer_create_assignment.php" class="btn-link-card">Manage Assignments</a>
             </div>
 
             <div class="card">
@@ -133,7 +132,6 @@ $h = static fn($s): string => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8')
                     <?= $materials_ready ? '(' . $stats['materials'] . ' shared)' : '' ?>
                 </p>
                 <?php if ($materials_ready): ?>
-                    <a href="lecturer_materials.php" class="btn-link-card">Manage Materials</a>
                 <?php else: ?>
                     <span class="feature-status">Import sql/lecturer_module_update.sql to enable</span>
                 <?php endif; ?>
@@ -145,7 +143,6 @@ $h = static fn($s): string => htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8')
                     View the students enrolled with you
                     and their submission progress.
                 </p>
-                <a href="lecturer_students.php" class="btn-link-card">View Students</a>
             </div>
 
         </section>
