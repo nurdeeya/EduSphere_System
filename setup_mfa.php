@@ -16,7 +16,7 @@ if (
     ) ||
     !in_array(
         $_SESSION['pending_mfa_role'],
-        ['student', 'lecturer'],
+        ['student', 'lecturer', 'admin'],
         true
     )
 ) {
@@ -132,6 +132,11 @@ try {
 
             if ($_SESSION['role'] === 'lecturer') {
                 header('Location: lecturer_dashboard.php');
+                exit;
+            }
+
+            if ($_SESSION['role'] === 'admin') {
+                header('Location: admin_dashboard.php');
                 exit;
             }
 

@@ -243,14 +243,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <span class="nav-icon">&#43;</span>
                 <span>Create Account</span>
             </a>
-        </div>
 
-        <div class="sidebar-section">
-            <p class="sidebar-heading">ACCOUNT</p>
-
-            <a href="logout.php" class="nav-link logout-link">
-                <span class="nav-icon">&#10140;</span>
-                <span>Log Out</span>
+            <a href="reset_mfa.php" class="nav-link">
+                <span class="nav-icon">&#128274;</span>
+                <span>Reset User MFA</span>
             </a>
         </div>
 

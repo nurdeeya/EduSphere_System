@@ -20,6 +20,11 @@ if (
         header('Location: lecturer_dashboard.php');
         exit;
     }
+
+    if ($_SESSION['role'] === 'admin') {
+        header('Location: admin_dashboard.php');
+        exit;
+    }
 }
 
 // Display login messages.
@@ -99,9 +104,9 @@ unset($_SESSION['show_lockout_popup']);
                 required
             >
 
-                <div class="forgot-password-container" style="text-align: right;">
+                <!--<div class="forgot-password-container" style="text-align: right;">
                     <a href="forgot_password.php" class="forgot-password-link">Forgot Password?</a>
-                </div>
+                </div> -->
             <br>
             <button type="submit">Log In</button>
 

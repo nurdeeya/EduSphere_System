@@ -10,7 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Display a general login failure message.
 function loginFailed(): void
 {
     $_SESSION['login_error'] =
@@ -20,7 +19,6 @@ function loginFailed(): void
     exit;
 }
 
-// Display an account lockout message.
 function loginLocked(int $remainingMinutes = 15): void
 {
     $remainingMinutes = max(1, $remainingMinutes);
@@ -32,23 +30,21 @@ function loginLocked(int $remainingMinutes = 15): void
         . $remainingMinutes
         . ' minute(s).';
 
-     $_SESSION['show_lockout_popup'] = true;
+    $_SESSION['show_lockout_popup'] = true;
 
     header('Location: ../login.php');
     exit;
 }
 
-// Get submitted login details.
 $loginIdentifier = trim($_POST['login_identifier'] ?? '');
 $password = $_POST['password'] ?? '';
 
-// Check required fields.
 if ($loginIdentifier === '' || $password === '') {
     loginFailed();
 }
 
 try {
-    // Find the student or lecturer account.
+    // Find the account, including its MFA status.
     $sql = 'SELECT
                 user_id,
                 login_identifier,
@@ -57,12 +53,12 @@ try {
                 role,
                 failed_login_attempts,
                 locked_until,
-                is_active
+                is_active,
+                mfa_enabled
             FROM users
             WHERE login_identifier = :identifier
             LIMIT 1';
 
-    //Prepared statement dan parameter binding
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
         'identifier' => $loginIdentifier
@@ -70,12 +66,11 @@ try {
 
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    // Reject unknown or inactive accounts.
     if (!$user || !(bool) $user['is_active']) {
         loginFailed();
     }
 
-    // Check lockout using the same clock as MySQL.
+    // Check whether the account is still locked.
     if ($user['locked_until'] !== null) {
         $timeQuery = $pdo->prepare(
             'SELECT TIMESTAMPDIFF(
@@ -92,14 +87,10 @@ try {
         $remainingSeconds = (int) $timeQuery->fetchColumn();
 
         if ($remainingSeconds > 0) {
-            $remainingMinutes = (int) ceil(
-                $remainingSeconds / 60
-            );
-
-            loginLocked($remainingMinutes);
+            loginLocked((int) ceil($remainingSeconds / 60));
         }
 
-        // Lockout has expired; reset the counter.
+        // Reset an expired lockout.
         $resetLock = $pdo->prepare(
             'UPDATE users
              SET failed_login_attempts = 0,
@@ -112,15 +103,13 @@ try {
         ]);
 
         $user['failed_login_attempts'] = 0;
-        $user['locked_until'] = null;
     }
 
-    // Verify the submitted password.
+    // Verify the password.
     if (!password_verify($password, $user['password_hash'])) {
         $failedAttempts =
             (int) $user['failed_login_attempts'] + 1;
 
-        // Lock the account for 15 minutes on attempt 5.
         $update = $pdo->prepare(
             'UPDATE users
              SET failed_login_attempts = :attempts,
@@ -145,16 +134,12 @@ try {
         loginFailed();
     }
 
-    // Allow only recognised roles.
-    if (!in_array(
-        $user['role'],
-        ['student', 'lecturer'],
-        true
-    )) {
+    // Accept only student, lecturer, and admin accounts.
+    if (!in_array($user['role'], ['student', 'lecturer', 'admin'], true)) {
         loginFailed();
     }
 
-    // Reset failed attempts after successful login.
+    // Reset failed attempts after a correct password.
     $reset = $pdo->prepare(
         'UPDATE users
          SET failed_login_attempts = 0,
@@ -166,30 +151,32 @@ try {
         'user_id' => $user['user_id']
     ]);
 
-    // Regenerate the session ID after authentication.
+    // Start a fresh session, but do not authenticate fully yet.
     session_regenerate_id(true);
 
-    // Password is correct, but login is NOT complete until MFA passes.
+    // Remove any previous authentication or pending MFA state.
+    unset(
+        $_SESSION['user_id'],
+        $_SESSION['login_identifier'],
+        $_SESSION['full_name'],
+        $_SESSION['role'],
+        $_SESSION['auth_complete'],
+        $_SESSION['pending_mfa_user_id'],
+        $_SESSION['pending_mfa_role']
+    );
+
+    // Keep only the identity needed for the MFA stage.
     $_SESSION['pending_mfa_user_id'] = $user['user_id'];
-    $_SESSION['pending_mfa_role']    = $user['role'];
-    $_SESSION['auth_complete']       = false;
+    $_SESSION['pending_mfa_role'] = $user['role'];
 
-    // verify_mfa.php sends users without MFA on to setup_mfa.php itself.
-    header('Location: ../verify_mfa.php');
+    // Continue to MFA setup or verification.
+    if ((int) $user['mfa_enabled'] === 1) {
+        header('Location: ../verify_mfa.php');
+        exit;
+    }
+
+    header('Location: ../setup_mfa.php');
     exit;
-
-    // Redirect according to the user's role.
-    if ($user['role'] === 'student') {
-        header('Location: ../student_dashboard.php');
-        exit;
-    }
-
-    if ($user['role'] === 'lecturer') {
-        header('Location: ../lecturer_dashboard.php');
-        exit;
-    }
-
-    loginFailed();
 
 } catch (PDOException $e) {
     error_log($e->getMessage());
@@ -197,3 +184,4 @@ try {
     http_response_code(500);
     exit('A system error occurred. Please try again later.');
 }
+

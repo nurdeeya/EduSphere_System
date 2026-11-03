@@ -3,34 +3,17 @@ session_start();
 
 require_once __DIR__ . '/config/database.php';
 
-// Allow this function only in the local development environment.
-// Change this condition only if you deliberately configure a separate,
-// protected test environment.
+// Only authenticated Admin users can reset MFA.
 if (
-    !in_array(
-        $_SERVER['SERVER_NAME'] ?? '',
-        ['localhost', '127.0.0.1'],
-        true
-    )
+    !isset($_SESSION['user_id'], $_SESSION['role'], $_SESSION['auth_complete']) ||
+    $_SESSION['auth_complete'] !== true ||
+    $_SESSION['role'] !== 'admin'
 ) {
-    http_response_code(403);
-    exit('This function is only available in the local development environment.');
+    header('Location: login.php');
+    exit;
 }
 
-// Development-only access control.
-// This page is available only on localhost.
-if (
-    !in_array(
-        $_SERVER['SERVER_NAME'] ?? '',
-        ['localhost', '127.0.0.1'],
-        true
-    )
-) {
-    http_response_code(403);
-    exit('Access denied. This function is for local testing only.');
-}
-
-// Generate a CSRF token.
+// Generate CSRF token.
 if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
@@ -38,58 +21,70 @@ if (empty($_SESSION['csrf_token'])) {
 $message = '';
 $error = '';
 
+// Process MFA reset request.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
     $csrf = $_POST['csrf_token'] ?? '';
-    $userId = filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
+    $userId = filter_input(
+        INPUT_POST,
+        'user_id',
+        FILTER_VALIDATE_INT
+    );
 
     if (
         !is_string($csrf) ||
         !hash_equals($_SESSION['csrf_token'], $csrf)
     ) {
-        $error = 'Invalid request. Please refresh the page and try again.';
+        $error = 'Invalid request.';
     } elseif (!$userId || $userId <= 0) {
-        $error = 'Please select a valid test account.';
+        $error = 'Please select a valid account.';
     } else {
         try {
-            // Reset MFA only for the selected student or lecturer.
+            // Reset MFA for Student or Lecturer only.
             $stmt = $pdo->prepare(
-                'UPDATE users
+                "UPDATE users
                  SET mfa_enabled = 0,
                      mfa_secret = NULL
                  WHERE user_id = :user_id
-                   AND role IN (:student_role, :lecturer_role)
-                   AND is_active = 1'
+                   AND role IN ('student', 'lecturer')
+                   AND is_active = 1
+                   AND mfa_enabled = 1"
             );
 
             $stmt->execute([
-                'user_id' => $userId,
-                'student_role' => 'student',
-                'lecturer_role' => 'lecturer'
+                'user_id' => $userId
             ]);
 
             if ($stmt->rowCount() > 0) {
-                $message = 'MFA has been reset for the selected test account.';
+                $message = 'MFA reset successfully. The user must configure MFA again.';
             } else {
-                $error = 'No eligible account was updated. Check the account ID and its current MFA status.';
+                $error = 'No eligible MFA-enabled account was updated.';
             }
-        } catch (Throwable $e) {
-            error_log((string) $e);
-            $error = 'A system error occurred. Please try again.';
+
+        } catch (PDOException $e) {
+            error_log($e->getMessage());
+            $error = 'A system error occurred.';
         }
     }
 }
 
-// Retrieve eligible test-account candidates.
-// This page is restricted to local development and an authenticated admin.
-$stmt = $pdo->query(
-    "SELECT user_id, login_identifier, full_name, role, mfa_enabled
-     FROM users
-     WHERE role IN ('student', 'lecturer')
-       AND is_active = 1
-     ORDER BY role, login_identifier"
-);
+// Retrieve Student and Lecturer accounts.
+try {
+    $stmt = $pdo->query(
+        "SELECT user_id, login_identifier, full_name, role, mfa_enabled
+         FROM users
+         WHERE role IN ('student', 'lecturer')
+           AND is_active = 1
+         ORDER BY role, login_identifier"
+    );
 
-$accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    error_log($e->getMessage());
+    $accounts = [];
+    $error = 'Unable to load user accounts.';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,9 +101,11 @@ $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <h1>Reset MFA</h1>
 
         <p class="description">
-            Use this development-only page to reset MFA for a student
-            or lecturer test account. The selected account will need to
-            configure MFA again during its next login.
+            Select a Student or Lecturer account to reset
+            its Multi-Factor Authentication (MFA).
+
+            After the reset, the user must configure MFA
+            again during the next login.
         </p>
 
         <?php if ($message !== ''): ?>
@@ -157,8 +154,16 @@ $accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <?php endforeach; ?>
             </select>
 
-            <button type="submit">Reset Selected Account</button>
-        </form>
+<button type="submit">Reset User MFA</button>
+</form>
+
+<!-- Back to Admin Dashboard -->
+<div class="back-dashboard-container">
+    <a href="admin_dashboard.php" class="back-dashboard-btn">
+        ← Back to Dashboard
+    </a>
+</div>
+        <br>
 
         <div class="warning">
             <strong>Warning:</strong> This page is intended for local

@@ -90,6 +90,11 @@ try {
                 <span class="nav-icon">&#43;</span>
                 <span>Create Account</span>
             </a>
+
+            <a href="reset_mfa.php" class="nav-link">
+                <span class="nav-icon">&#128274;</span>
+                <span>Reset User MFA</span>
+            </a>
         </div>
 
         <div class="sidebar-section">
