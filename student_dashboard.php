@@ -42,6 +42,26 @@ try {
     ");
     $stmt->execute([':student_id' => $student_id, ':enrolled_student_id' => $student_id]);
     $assignments = $stmt->fetchAll();
+
+    // Learning materials from the student's own lecturers (enrolment enforced in the JOIN).
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM learning_materials m
+        JOIN enrollments e ON e.lecturer_id = m.lecturer_id AND e.student_id = :student_id
+    ");
+    $stmt->execute([':student_id' => $student_id]);
+    $material_total = (int) $stmt->fetchColumn();
+
+    $stmt = $pdo->prepare("
+        SELECT m.id, m.title, m.file_path, m.uploaded_at, u.full_name AS lecturer
+        FROM learning_materials m
+        JOIN enrollments e ON e.lecturer_id = m.lecturer_id AND e.student_id = :student_id
+        JOIN users u ON u.user_id = m.lecturer_id
+        ORDER BY m.uploaded_at DESC, m.id DESC
+        LIMIT 5
+    ");
+    $stmt->execute([':student_id' => $student_id]);
+    $recent_materials = $stmt->fetchAll();
 } catch (PDOException $e) {
     error_log('student_dashboard: ' . $e->getMessage());
     http_response_code(500);
@@ -71,6 +91,7 @@ $pending = $total - $submitted;
     <header class="navbar">
         <div class="brand">EduSphere</div>
         <div class="navbar-right">
+            <a class="nav-link" href="student_materials.php">Learning Materials</a>
             <span class="role-label">Student Account</span>
             <a class="logout-btn" href="logout.php">Log Out</a>
         </div>
@@ -98,6 +119,10 @@ $pending = $total - $submitted;
                 <h3>Not Submitted</h3>
                 <p><?= escape((string) $pending) ?></p>
             </div>
+            <a class="card card-link" href="student_materials.php">
+                <h3>Learning Materials</h3>
+                <p><?= escape((string) $material_total) ?></p>
+            </a>
         </section>
 
         <h2 class="section-title">Your Assignments</h2>
@@ -152,6 +177,41 @@ $pending = $total - $submitted;
                         </tbody>
                     </table>
                 </div>
+            <?php endif; ?>
+        </section>
+        <h2 class="section-title" style="margin-top: 30px;">Recent Learning Materials</h2>
+
+        <section class="information">
+            <?php if (!$recent_materials): ?>
+                <p class="muted">Your lecturers have not shared any learning materials yet.</p>
+            <?php else: ?>
+                <div class="table-wrap">
+                    <table class="assignment-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Lecturer</th>
+                                <th>Uploaded</th>
+                                <th>File</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($recent_materials as $m): ?>
+                            <tr>
+                                <td data-label="Title" class="title-cell"><?= escape($m['title']) ?></td>
+                                <td data-label="Lecturer"><?= escape($m['lecturer']) ?></td>
+                                <td data-label="Uploaded"><?= escape(date('d M Y', strtotime($m['uploaded_at']))) ?></td>
+                                <td data-label="File">
+                                    <a class="btn btn-outline" href="material_download.php?id=<?= (int) $m['id'] ?>">Download <?= escape(strtoupper(pathinfo($m['file_path'], PATHINFO_EXTENSION))) ?></a>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php if ($material_total > count($recent_materials)): ?>
+                    <p style="margin-top: 14px;"><a class="btn" href="student_materials.php">View all <?= escape((string) $material_total) ?> materials</a></p>
+                <?php endif; ?>
             <?php endif; ?>
         </section>
     </main>

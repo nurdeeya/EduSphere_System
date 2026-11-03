@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Oct 26, 2026 at 07:49 AM
+-- Generation Time: Nov 03, 2026 at 07:18 AM
 -- Server version: 8.4.7
--- PHP Version: 8.3.28
+-- PHP Version: 8.2.29
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS `assignments` (
   `created_by` int UNSIGNED NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `assignments`
@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS `assignments` (
 INSERT INTO `assignments` (`id`, `title`, `description`, `file_path`, `deadline`, `created_by`, `created_at`) VALUES
 (1, 'Test', 'sad', 'c205e7432543e599be2b3e1703566295.pdf', '2026-10-27 00:43:00', 6, '2026-10-24 16:44:02'),
 (2, 'Assignment 1: Late Upload Test', 'Testing Late Upload', NULL, '2026-10-25 04:48:00', 6, '2026-10-24 20:48:38'),
-(3, 'Assignment 2 10% Energy Computing', '', '2bfa3156ad8ee3c4166b0a538551e09d.pdf', '2026-10-28 17:36:00', 3, '2026-10-25 09:36:42');
+(3, 'Assignment 2 10% Energy Computing', '', '2bfa3156ad8ee3c4166b0a538551e09d.pdf', '2026-10-28 17:36:00', 3, '2026-10-25 09:36:42'),
+(4, 'Testing New', NULL, '8f79f2b7b932d00e39c80ffc74505a4d.pdf', '2026-11-04 14:46:00', 6, '2026-11-03 06:46:49');
 
 -- --------------------------------------------------------
 
@@ -63,7 +64,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   `ip_address` varchar(45) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `audit_logs`
@@ -75,7 +76,10 @@ INSERT INTO `audit_logs` (`id`, `user_id`, `action`, `details`, `ip_address`, `c
 (3, 2, 'ACCESS_DENIED', 'student_view_assignment id=3 not enrolled or missing', '::1', '2026-10-26 07:37:20'),
 (4, 2, 'ACCESS_DENIED', 'student_view_assignment id=3 not enrolled or missing', '::1', '2026-10-26 07:37:24'),
 (5, 2, 'ACCESS_DENIED', 'student_view_assignment id=4 not enrolled or missing', '::1', '2026-10-26 07:37:27'),
-(6, 5, 'ACCESS_DENIED', 'student_view_assignment id=3 not enrolled or missing', '::1', '2026-10-26 07:44:16');
+(6, 5, 'ACCESS_DENIED', 'student_view_assignment id=3 not enrolled or missing', '::1', '2026-10-26 07:44:16'),
+(7, 6, 'ASSIGNMENT_CREATED', 'assignment_id=4; deadline=2026-11-04T14:46; file=8f79f2b7b932d00e39c80ffc74505a4d.pdf', '::1', '2026-11-03 06:46:49'),
+(8, 6, 'MATERIAL_UPLOADED', 'material_id=1; file=d19576665c18836aff0a91dcb1f75e7d.pdf', '::1', '2026-11-03 07:03:11'),
+(9, 6, 'MATERIAL_UPLOADED', 'material_id=2; file=e329e466b6a8240b5188620f6581e0c8.pdf', '::1', '2026-11-03 07:16:45');
 
 -- --------------------------------------------------------
 
@@ -104,6 +108,33 @@ INSERT INTO `enrollments` (`student_id`, `lecturer_id`, `enrolled_at`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `learning_materials`
+--
+
+DROP TABLE IF EXISTS `learning_materials`;
+CREATE TABLE IF NOT EXISTS `learning_materials` (
+  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `lecturer_id` int UNSIGNED NOT NULL,
+  `title` varchar(150) NOT NULL,
+  `description` varchar(1000) DEFAULT NULL,
+  `file_path` varchar(255) NOT NULL,
+  `file_size` int UNSIGNED NOT NULL,
+  `uploaded_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_lecturer` (`lecturer_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `learning_materials`
+--
+
+INSERT INTO `learning_materials` (`id`, `lecturer_id`, `title`, `description`, `file_path`, `file_size`, `uploaded_at`) VALUES
+(1, 6, 'Week 2', NULL, 'd19576665c18836aff0a91dcb1f75e7d.pdf', 968299, '2026-11-03 07:03:11'),
+(2, 6, 'Testing', NULL, 'e329e466b6a8240b5188620f6581e0c8.pdf', 1102544, '2026-11-03 07:16:45');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `login_attempts`
 --
 
@@ -117,6 +148,25 @@ CREATE TABLE IF NOT EXISTS `login_attempts` (
   PRIMARY KEY (`attempt_id`),
   KEY `idx_ip_time` (`ip_address`,`attempted_at`),
   KEY `idx_email_time` (`email_submitted`,`attempted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+DROP TABLE IF EXISTS `notifications`;
+CREATE TABLE IF NOT EXISTS `notifications` (
+  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` int UNSIGNED NOT NULL,
+  `assignment_id` int UNSIGNED DEFAULT NULL,
+  `message` varchar(255) NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_read` (`user_id`,`is_read`),
+  KEY `fk_notification_assignment` (`assignment_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -177,7 +227,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 --
 
 INSERT INTO `users` (`user_id`, `login_identifier`, `full_name`, `email`, `password_hash`, `role`, `failed_login_attempts`, `locked_until`, `mfa_enabled`, `mfa_secret`, `is_active`, `created_at`) VALUES
-(1, 'BSW98876541', 'Test Student', 'test.student@example.com', '$2y$10$Tyfe4LwT5TAFUGK6sHYOsucoZNK4OD68AmH3fKeBGN4o73yCEn6zC', 'student', 0, NULL, 0, NULL, 1, '2026-10-20 13:57:21'),
+(1, 'BSW98876541', 'Test Student', 'test.student@example.com', '$2y$10$Tyfe4LwT5TAFUGK6sHYOsucoZNK4OD68AmH3fKeBGN4o73yCEn6zC', 'student', 3, NULL, 0, NULL, 1, '2026-10-20 13:57:21'),
 (2, 'BSW98888811', 'Naim Hakim', 'Hakim@gmail.com', '$2y$10$CIcYJJB.1HzfWiWa0mr4OuHa/aDcezIn.pEJr4n2ho3eSYt5FLho.', 'student', 0, NULL, 0, NULL, 1, '2026-10-20 17:49:03'),
 (3, 'AhmadDanial', 'Ahmad Danial', 'Danial@gmail.com', '$2y$10$pJGqResjTxYkmwj6tM/vaOHlcV0AFINPYOkiRhMvl/y6h4vtDIcG6', 'lecturer', 0, NULL, 0, NULL, 1, '2026-10-20 17:49:03'),
 (4, 'KamalAbdul', 'Kamal Abdullah', 'Kamal@gmail.com', '$2y$10$7McwUQyhdJ3Dw227U.6QBe/.H.KR2BrUkY2bRSZQKy0umitS6b1Su', 'lecturer', 1, NULL, 0, NULL, 1, '2026-10-21 15:20:18'),
@@ -194,6 +244,19 @@ INSERT INTO `users` (`user_id`, `login_identifier`, `full_name`, `email`, `passw
 ALTER TABLE `enrollments`
   ADD CONSTRAINT `fk_enrol_lecturer` FOREIGN KEY (`lecturer_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   ADD CONSTRAINT `fk_enrol_student` FOREIGN KEY (`student_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `learning_materials`
+--
+ALTER TABLE `learning_materials`
+  ADD CONSTRAINT `fk_material_lecturer` FOREIGN KEY (`lecturer_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+--
+-- Constraints for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD CONSTRAINT `fk_notification_assignment` FOREIGN KEY (`assignment_id`) REFERENCES `assignments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  ADD CONSTRAINT `fk_notification_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 --
 -- Constraints for table `submissions`

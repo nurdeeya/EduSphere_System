@@ -54,6 +54,7 @@ try {
     <header class="navbar">
         <div class="brand">EduSphere</div>
         <div class="navbar-right">
+            <a class="nav-link" href="student_dashboard.php">Dashboard</a>
             <span class="role-label">Student Account</span>
             <a class="logout-btn" href="logout.php">Log Out</a>
         </div>
