@@ -894,3 +894,244 @@ a:focus-visible {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ========================================
+   Audit Logs
+   ======================================== */
+
+.audit-section {
+    margin-top: 34px;
+    margin-bottom: 34px;
+}
+
+.audit-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) repeat(4, minmax(0, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+
+    margin-bottom: 18px;
+    padding: 16px;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+}
+
+.filter-field {
+    min-width: 0;
+}
+
+.filter-field label {
+    display: block;
+    margin-bottom: 5px;
+
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.filter-field input,
+.filter-field select {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+
+    color: var(--text-primary);
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+
+    font: inherit;
+    font-size: 12px;
+}
+
+.filter-field input:focus,
+.filter-field select:focus {
+    outline: 3px solid rgba(49, 87, 200, 0.25);
+    border-color: var(--primary);
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.filter-buttons .primary-button {
+    cursor: pointer;
+    min-height: 40px;
+}
+
+.secondary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 40px;
+    padding: 8px 16px;
+
+    color: var(--text-secondary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.secondary-button:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.table-scroll {
+    overflow-x: auto;
+}
+
+.audit-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.audit-table th {
+    padding: 12px 16px;
+
+    color: var(--text-secondary);
+    background: #fafbfe;
+    border-bottom: 1px solid var(--border);
+
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.audit-table td {
+    padding: 12px 16px;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border);
+}
+
+.audit-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.audit-table tbody tr:hover {
+    background: #fafbfe;
+}
+
+.audit-table .nowrap {
+    white-space: nowrap;
+}
+
+.audit-table .details-cell {
+    max-width: 380px;
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+}
+
+.audit-table .empty-row {
+    padding: 36px 16px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.user-meta {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-info     { color: var(--primary-dark); background: var(--primary-light); }
+.badge-admin    { color: #6b3fb3;             background: #f1eaff; }
+.badge-security { color: var(--success);      background: #e6f6ef; }
+.badge-danger   { color: #a42d3a;             background: #fff0f1; }
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    margin-top: 16px;
+    font-size: 12px;
+}
+
+.pagination a,
+.pagination .disabled {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    font-weight: 700;
+}
+
+.pagination a {
+    color: var(--primary);
+}
+
+.pagination a:hover {
+    border-color: var(--primary);
+}
+
+.pagination .disabled {
+    color: #b3bccd;
+}
+
+.page-status {
+    color: var(--text-secondary);
+}
+
+.recent-activity {
+    margin-bottom: 34px;
+}
+
+.recent-activity .table-card .audit-table {
+    min-width: 640px;
+}
+
+.view-all-link {
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+    .audit-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .filter-search,
+    .filter-buttons {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 600px) {
+    .audit-filters {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

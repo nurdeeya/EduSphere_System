@@ -3,6 +3,7 @@
 session_start();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/audit.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
 use RobThree\Auth\TwoFactorAuth;
@@ -105,6 +106,7 @@ try {
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['auth_complete'] = true;
+                audit_log($pdo, (int) $user['user_id'], 'LOGIN_SUCCESS', 'role=' . $user['role']);
 
                 // Remove temporary login information.
                 unset(

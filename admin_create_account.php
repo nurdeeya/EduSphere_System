@@ -3,6 +3,7 @@
 session_start();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/audit.php';
 
 // Allow only fully authenticated Admin accounts.
 if (
@@ -177,6 +178,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'password_hash' => $passwordHash,
                     'role' => $selectedRole
                 ]);
+
+                audit_log(
+                    $pdo,
+                    (int) $_SESSION['user_id'],
+                    'ACCOUNT_CREATED',
+                    'new_user_id=' . $pdo->lastInsertId()
+                        . '; username=' . $loginIdentifier
+                        . '; role=' . $selectedRole
+                );
 
                 $success = ucfirst($selectedRole)
                     . ' account created successfully.';

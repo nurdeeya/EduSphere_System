@@ -2,6 +2,7 @@
 session_start();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/audit.php';
 
 // Only authenticated Admin users can reset MFA.
 if (
@@ -56,6 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
 
             if ($stmt->rowCount() > 0) {
+                audit_log(
+                    $pdo,
+                    (int) $_SESSION['user_id'],
+                    'MFA_RESET',
+                    'target_user_id=' . $userId
+                );
+
                 $message = 'MFA reset successfully. The user must configure MFA again.';
             } else {
                 $error = 'No eligible MFA-enabled account was updated.';

@@ -3,6 +3,7 @@
 session_start();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/audit.php';
 
 // Allow only fully authenticated Admin accounts.
 if (
@@ -25,6 +26,7 @@ $lecturerCount = 0;
 $adminCount = 0;
 $totalAccounts = 0;
 $databaseError = false;
+$recentLogs = [];
 
 try {
     // Count accounts for each role.
@@ -44,6 +46,16 @@ try {
     $totalAccounts = $studentCount
         + $lecturerCount
         + $adminCount;
+
+    // Latest audit events for the Recent Activity panel.
+    $recentLogs = $pdo->query(
+        "SELECT l.action, l.details, l.created_at,
+                u.full_name, u.login_identifier
+         FROM audit_logs l
+         LEFT JOIN users u ON u.user_id = l.user_id
+         ORDER BY l.created_at DESC, l.id DESC
+         LIMIT 5"
+    )->fetchAll();
 
 } catch (PDOException $e) {
     error_log('Admin dashboard error: ' . $e->getMessage());
@@ -94,6 +106,11 @@ try {
             <a href="reset_mfa.php" class="nav-link">
                 <span class="nav-icon">&#128274;</span>
                 <span>Reset User MFA</span>
+            </a>
+
+            <a href="admin_audit_logs.php" class="nav-link">
+                <span class="nav-icon">&#9776;</span>
+                <span>Audit Logs</span>
             </a>
         </div>
 
@@ -171,7 +188,7 @@ try {
                                 'UTF-8'
                             ) ?>
                         </strong>.
-                        Manage EduSphere user accounts from one place.
+                        Manage EduSphere user accounts and review system activity from one place.
                     </p>
                 </div>
 
@@ -337,6 +354,72 @@ try {
                     </article>
 
                 </div>
+            </section>
+
+            <!-- Recent Activity (Audit Log) -->
+            <section class="recent-activity"
+                     aria-labelledby="recentHeading">
+
+                <div class="section-heading">
+                    <div>
+                        <h2 id="recentHeading">Recent Activity</h2>
+                        <p>Latest events from the audit log.</p>
+                    </div>
+
+                    <a href="admin_audit_logs.php" class="view-all-link">
+                        View full audit log
+                        <span aria-hidden="true">&rarr;</span>
+                    </a>
+                </div>
+
+                <div class="table-card">
+                    <div class="table-scroll">
+                        <table class="audit-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">User</th>
+                                    <th scope="col">Action</th>
+                                    <th scope="col">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php if (!$recentLogs): ?>
+                                <tr>
+                                    <td colspan="4" class="empty-row">
+                                        No events have been recorded yet.
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
+
+                            <?php foreach ($recentLogs as $log): ?>
+                                <tr>
+                                    <td class="nowrap">
+                                        <?= htmlspecialchars($log['created_at'], ENT_QUOTES, 'UTF-8') ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($log['full_name'] !== null): ?>
+                                            <strong><?= htmlspecialchars($log['full_name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                                            <span class="user-meta"><?= htmlspecialchars($log['login_identifier'], ENT_QUOTES, 'UTF-8') ?></span>
+                                        <?php else: ?>
+                                            <span class="user-meta">Deleted user</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-<?= htmlspecialchars(audit_action_category($log['action']), ENT_QUOTES, 'UTF-8') ?>">
+                                            <?= htmlspecialchars(audit_action_label($log['action']), ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    </td>
+                                    <td class="details-cell">
+                                        <?= htmlspecialchars((string) $log['details'], ENT_QUOTES, 'UTF-8') ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </section>
 
             <!-- Security Notice -->

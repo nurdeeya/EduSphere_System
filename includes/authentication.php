@@ -3,6 +3,7 @@
 session_start();
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/audit.php';
 
 // Accept login requests only through POST.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -128,6 +129,13 @@ try {
         ]);
 
         if ($failedAttempts >= 5) {
+            audit_log(
+                $pdo,
+                (int) $user['user_id'],
+                'ACCOUNT_LOCKED',
+                'failed_attempts=' . $failedAttempts . '; locked_for=15 minutes'
+            );
+
             loginLocked(15);
         }
 

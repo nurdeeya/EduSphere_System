@@ -3,6 +3,7 @@
 session_start();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/audit.php';
 require_once __DIR__ . '/vendor/autoload.php';
 
 use RobThree\Auth\TwoFactorAuth;
@@ -115,6 +116,7 @@ try {
                 $_SESSION['user_id'] = $user['user_id'];
                 $_SESSION['role'] = $_SESSION['pending_mfa_role'];
                 $_SESSION['auth_complete'] = true;
+                audit_log($pdo, (int) $user['user_id'], 'LOGIN_SUCCESS', 'role=' . $_SESSION['role'] . '; mfa_setup=1');
 
                 // Remove temporary login and setup information.
             unset(
