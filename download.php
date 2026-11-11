@@ -56,7 +56,7 @@ if (!is_string($type) || !in_array($type, ['material', 'submission'], true) || $
     header('Content-Type: text/plain; charset=UTF-8');
     exit('Bad request.');
 }
-
+//nad pinky
 try {
     if ($type === 'material') {
         // Lecturer material: enrolled students and the lecturer who created it.
