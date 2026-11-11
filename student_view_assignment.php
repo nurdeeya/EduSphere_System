@@ -8,7 +8,6 @@ require_once 'config/upload.php';
 require_once __DIR__ . '/includes/access.php';
 require_role('student');
 
-const SUBMISSION_UPLOAD_DIR = __DIR__ . '/uploads';
 const ALLOWED_SUBMISSION_EXT = ['pdf', 'docx', 'zip'];
 const MAX_REMARKS_LENGTH = 1000;
 
@@ -153,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // SR3: magic-byte MIME check, 10MB limit, random filename.
-        $result = secure_file_upload($file, SUBMISSION_UPLOAD_DIR);
+        $result = secure_file_upload($file, upload_storage_dir());
 
         // The helper returns either the new filename or an error sentence.
         if (!is_string($result) || !preg_match('/^[a-f0-9]{32}\.(pdf|docx|zip)$/i', $result)) {
@@ -206,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Housekeeping: remove the file this submission replaced (name pattern is re-checked).
             if ($old && preg_match('/^[a-f0-9]{32}\.[A-Za-z0-9]{1,10}$/', $old['file_path']) && $old['file_path'] !== $uploaded_name) {
-                $old_path = SUBMISSION_UPLOAD_DIR . '/' . basename($old['file_path']);
+                $old_path = upload_storage_dir() . '/' . basename($old['file_path']);
                 if (is_file($old_path)) {
                     @unlink($old_path);
                 }
@@ -223,7 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             error_log('student_view_assignment (submit): ' . $e->getMessage());
             // Do not leave an orphaned upload behind.
-            $orphan = SUBMISSION_UPLOAD_DIR . '/' . basename($uploaded_name);
+            $orphan = upload_storage_dir() . '/' . basename($uploaded_name);
             if (is_file($orphan)) {
                 @unlink($orphan);
             }

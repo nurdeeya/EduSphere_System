@@ -1,0 +1,30 @@
+{
+    "name": "maikuolan/common",
+    "description": "Common classes package. Contains some common classes written for CIDRAM, phpMussel, etc, available for additional use elsewhere via this package.",
+    "keywords": ["classes","common","php","yaml","l10n"],
+    "license": "GPL-2.0-or-later",
+    "support": {
+        "issues": "https://github.com/Maikuolan/Common/issues",
+        "source": "https://github.com/Maikuolan/Common",
+        "docs": "https://github.com/Maikuolan/Common/tree/v2/docs",
+        "rss": "https://github.com/Maikuolan/Common/releases.atom"
+    },
+    "require": {
+        "php": ">=7.2.0",
+        "ext-pcre": "*",
+        "ext-iconv": "*"
+    },
+    "suggest": {
+        "php": ">=8",
+        "ext-apcu": ">=4",
+        "ext-curl": "*"
+    },
+    "scripts": {
+        "test": "@php tests.php"
+    },
+    "autoload": {
+        "psr-4": {
+            "Maikuolan\\Common\\": "src/"
+        }
+    }
+}

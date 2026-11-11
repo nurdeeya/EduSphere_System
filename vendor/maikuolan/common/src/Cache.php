@@ -1,0 +1,1569 @@
+<?php
+/**
+ * A simple, unified cache handler (last modified: 2026.03.22).
+ *
+ * This file is a part of the "common classes package", utilised by a number of
+ * packages and projects, including CIDRAM and phpMussel.
+ * @link https://github.com/Maikuolan/Common
+ *
+ * License: GNU/GPLv2
+ * @see LICENSE.txt
+ *
+ * "COMMON CLASSES PACKAGE", as well as the earliest iteration and deployment
+ * of this class, COPYRIGHT 2019 and beyond by Caleb Mazalevskis (Maikuolan).
+ */
+
+namespace Maikuolan\Common;
+
+class Cache extends CommonAbstract implements \ArrayAccess, \Countable
+{
+    /**
+     * @var bool Whether to try using APCu.
+     */
+    public $EnableAPCu = false;
+
+    /**
+     * @var bool Whether to try using Memcached.
+     */
+    public $EnableMemcached = false;
+
+    /**
+     * @var bool Whether to try using Redis.
+     */
+    public $EnableRedis = false;
+
+    /**
+     * @var bool Whether to try using PDO.
+     */
+    public $EnablePDO = false;
+
+    /**
+     * @var string The host for Memcached to try using.
+     */
+    public $MemcachedHost = 'localhost';
+
+    /**
+     * @var int The port for Memcached to try using.
+     */
+    public $MemcachedPort = 11211;
+
+    /**
+     * @var string The host for Redis to try using.
+     */
+    public $RedisHost = 'localhost';
+
+    /**
+     * @var int The port for Redis to try using.
+     */
+    public $RedisPort = 6379;
+
+    /**
+     * @var int|float The timeout for Redis to try using.
+     */
+    public $RedisTimeout = 2.5;
+
+    /**
+     * @var int Which database number Redis should select.
+     * @link https://redis.io/commands/select/
+     */
+    public $RedisDatabaseNumber = 0;
+
+    /**
+     * @var string The DSN to use for PDO connections.
+     */
+    #[Context(Sensitive: true)]
+    public $PDOdsn = '';
+
+    /**
+     * @var string The username to use for PDO connections.
+     */
+    #[Context(Sensitive: true)]
+    public $PDOusername = '';
+
+    /**
+     * @var string The password to use for PDO connections.
+     */
+    #[Context(Sensitive: true)]
+    public $PDOpassword = '';
+
+    /**
+     * @var string Used to indicate which mechanism the object should preferably be using.
+     */
+    public $Using = '';
+
+    /**
+     * @var string The path to a flatfile to use for caching.
+     */
+    public $FFDefault = '';
+
+    /**
+     * @var string Prepended to all cache entry keys (optional).
+     */
+    public $Prefix = '';
+
+    /**
+     * @var array An array to contain any thrown exceptions.
+     */
+    public $Exceptions = [];
+
+    /**
+     * @var bool Whether to allow permissions to be enforced.
+     */
+    public $AllowEnforcingPermissions = true;
+
+    /**
+     * @var bool Whether the cache has been modified since instantiation as far as we know.
+     */
+    private $Modified = false;
+
+    /**
+     * @var mixed Cache working object (needed by a number of mechanisms).
+     */
+    private $WorkingData = null;
+
+    /**
+     * @var array Used for manual cache key indexing for mechanisms which don't provide means of properly fetching all keys (e.g., Memcached).
+     */
+    private $Indexes = [];
+
+    /**
+     * @var bool Whether the cache indexes have been modified since instantiation as far as we know.
+     */
+    private $ModifiedIndexes = false;
+
+    /**
+     * @var bool Whether an attempt has already been made to clear expired PDO entries.
+     */
+    private $PDOAlreadyCleared = false;
+
+    /**
+     * @var string Prepared set query for PDO.
+     */
+    public const SET_QUERY = 'REPLACE INTO `Cache` (`Key`, `Data`, `Time`) values (:key, :data, :time)';
+
+    /**
+     * @var string Prepared get query for PDO.
+     */
+    public const GET_QUERY = 'SELECT * FROM `Cache` WHERE `Key` = :key LIMIT 1';
+
+    /**
+     * @var string Prepared delete query for PDO.
+     */
+    public const DELETE_QUERY = 'DELETE FROM `Cache` WHERE `Key` = :key';
+
+    /**
+     * @var string Prepared clear all query for PDO.
+     */
+    public const CLEAR_QUERY = 'DELETE FROM `Cache` WHERE 1';
+
+    /**
+     * @var string Prepared clear expired query for PDO.
+     */
+    public const CLEAR_EXPIRED_QUERY = 'DELETE FROM `Cache` WHERE `Time` > 0 AND `Time` < :time';
+
+    /**
+     * @var string Prepared get all query for PDO.
+     */
+    public const GET_ALL_QUERY = 'SELECT * FROM `Cache` WHERE 1';
+
+    /**
+     * @var string Prepared get all query for SQLite with PDO using configured prefix.
+     */
+    public const GET_ALL_QUERY_WPREFIX_DPIPE = 'SELECT * FROM `Cache` WHERE `Key` LIKE :prefix || \'%\'';
+
+    /**
+     * @var string Prepared get all query for MySQL/MariaDB/PostgreSQL/SQLSrv with PDO using configured prefix.
+     */
+    public const GET_ALL_QUERY_WPREFIX_CONCAT = 'SELECT * FROM `Cache` WHERE `Key` LIKE CONCAT(:prefix, \'%\')';
+
+    /**
+     * @var string Prepared get all query for 4D with PDO using configured prefix.
+     */
+    public const GET_ALL_QUERY_WPREFIX_PLUS = 'SELECT * FROM `Cache` WHERE `Key` LIKE :prefix + \'%\'';
+
+    /**
+     * @var string Prepared count all query for PDO.
+     */
+    public const COUNT_ALL_QUERY = 'SELECT COUNT(*) FROM `Cache` WHERE 1';
+
+    /**
+     * @var string Prepared count all query for SQLite with PDO using configured prefix.
+     */
+    public const COUNT_ALL_QUERY_WPREFIX_DPIPE = 'SELECT COUNT(*) FROM `Cache` WHERE `Key` LIKE :prefix || \'%\'';
+
+    /**
+     * @var string Prepared count all query for MySQL/MariaDB/PostgreSQL/SQLSrv with PDO using configured prefix.
+     */
+    public const COUNT_ALL_QUERY_WPREFIX_CONCAT = 'SELECT COUNT(*) FROM `Cache` WHERE `Key` LIKE CONCAT(:prefix, \'%\')';
+
+    /**
+     * @var string Prepared count all query for 4D with PDO using configured prefix.
+     */
+    public const COUNT_ALL_QUERY_WPREFIX_PLUS = 'SELECT COUNT(*) FROM `Cache` WHERE `Key` LIKE :prefix + \'%\'';
+
+    /**
+     * @var int Number of seconds to try flocking a resource before giving up.
+     */
+    public const FLOCK_TIMEOUT = 10;
+
+    /**
+     * @var int The maximum permitted length of the names of keys. There aren't
+     *      any hard limits enforced by APCu, Redis, or flatfile caching.
+     *      Memcached enforces a 250 byte limit (see link). But, the query in
+     *      checkTablesPDO() for creating new PDO tables already uses
+     *      "VARCHAR(128)" for its keys column as a safe, reliable balance for
+     *      whatever possible database systems might be being utilised by PDO
+     *      at the systems where implemented, thus setting a 128 byte limit
+     *      here feels like a reasonable decision.
+     * @link https://github.com/memcached/memcached/blob/master/memcached.h#L56
+     */
+    public const KEY_SIZE_LIMIT = 128;
+
+    /**
+     * Construct object and set working data if needed.
+     *
+     * @param array|null $WorkingData An optional array of default cache data.
+     * @return void
+     */
+    public function __construct(?array $WorkingData = null)
+    {
+        if (\is_array($WorkingData)) {
+            $this->WorkingData = $WorkingData;
+        }
+    }
+
+    /**
+     * Object destructor. Used to close any open connections, save cache to disk, etc.
+     *
+     * @return void
+     */
+    public function __destruct()
+    {
+        if ($this->Using === 'Memcached') {
+            if ($this->ModifiedIndexes) {
+                $this->setEntry('__Indexes', \implode("\n", \array_keys($this->Indexes)), 0);
+            }
+            $this->WorkingData->quit();
+            return;
+        }
+        if ($this->Using === 'Redis') {
+            $this->WorkingData->close();
+            return;
+        }
+        if (!\is_array($this->WorkingData)) {
+            return;
+        }
+        if ($this->clearExpired($this->WorkingData)) {
+            $this->Modified = true;
+        }
+        if ($this->FFDefault && $this->Modified && $this->Using === 'FF') {
+            $Handle = false;
+            $Start = \time();
+            while (true) {
+                $Handle = \fopen($this->FFDefault, 'wb');
+                if ($Handle !== false || (\time() - $Start) > self::FLOCK_TIMEOUT) {
+                    break;
+                }
+            }
+            if ($Handle === false) {
+                return;
+            }
+            $Locked = false;
+            while (true) {
+                if ($Locked = \flock($Handle, \LOCK_EX | \LOCK_NB) || (\time() - $Start) > self::FLOCK_TIMEOUT) {
+                    break;
+                }
+            }
+            if ($Locked) {
+                \fwrite($Handle, \serialize($this->WorkingData));
+                \flock($Handle, \LOCK_UN);
+            }
+            \fclose($Handle);
+        }
+    }
+
+    /**
+     * Should be called after constructing the object, after defining any
+     * configurables, but before trying to set or get any cache items.
+     *
+     * @return bool True on success; False on failure.
+     */
+    public function connect(): bool
+    {
+        if ($this->EnableAPCu && \extension_loaded('apcu') && \ini_get('apc.enabled')) {
+            $this->Using = 'APCu';
+            return true;
+        }
+        if ($this->EnableMemcached && \extension_loaded('memcached')) {
+            try {
+                $this->WorkingData = new \Memcached();
+                if ($this->WorkingData->addServer($this->MemcachedHost, $this->MemcachedPort)) {
+                    $this->Using = 'Memcached';
+                    $Indexes = $this->getEntry('__Indexes');
+                    if (\is_string($Indexes)) {
+                        $this->Indexes = \array_fill_keys(\explode("\n", $Indexes), true);
+                    }
+                    return true;
+                }
+                $this->WorkingData = null;
+            } catch (\Exception $Exception) {
+                $this->Exceptions[] = $Exception->getMessage();
+            }
+        }
+        if ($this->EnableRedis && \extension_loaded('redis')) {
+            try {
+                $this->WorkingData = new \Redis();
+                if ($this->WorkingData->connect($this->RedisHost, $this->RedisPort, $this->RedisTimeout)) {
+                    $this->Using = 'Redis';
+                    if ($this->RedisDatabaseNumber !== 0) {
+                        $this->WorkingData->select($this->RedisDatabaseNumber);
+                        if ($this->WorkingData->getDbNum() !== $this->RedisDatabaseNumber) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                $this->WorkingData = null;
+            } catch (\RedisException $Exception) {
+                $this->Exceptions[] = $Exception->getMessage();
+            }
+        }
+        if ($this->EnablePDO && \extension_loaded('pdo')) {
+            try {
+                $PDO = new \PDO($this->PDOdsn, $this->PDOusername, $this->PDOpassword);
+                if (\is_object($PDO)) {
+                    $this->WorkingData = $PDO;
+                    $this->Using = 'PDO';
+                    return $this->checkTablesPDO();
+                }
+                unset($PDO);
+            } catch (\PDOException $Exception) {
+                $this->Exceptions[] = $Exception->getMessage();
+                return false;
+            }
+        }
+        if (!\is_string($this->FFDefault) || $this->FFDefault === '') {
+            return \is_array($this->WorkingData);
+        }
+        $Parent = \dirname($this->FFDefault);
+        if (!$this->tryEnforcePermissions($Parent)) {
+            return false;
+        }
+        if (\is_file($this->FFDefault)) {
+            if (!\is_readable($this->FFDefault) || !\is_writable($this->FFDefault)) {
+                return false;
+            }
+            $this->Using = 'FF';
+            $Filesize = \filesize($this->FFDefault);
+            if ($Filesize < 1) {
+                $this->WorkingData = [];
+                return $this->Modified = true;
+            }
+            $Data = \file_get_contents($this->FFDefault);
+            $Data = (\is_string($Data) && $Data !== '') ? \unserialize($Data) : [];
+            $this->WorkingData = \is_array($Data) ? $Data : [];
+            return true;
+        }
+        if (\is_dir($Parent) && \is_readable($Parent) && \is_writable($Parent)) {
+            $this->WorkingData = [];
+            $this->Using = 'FF';
+            return $this->Modified = true;
+        }
+        return false;
+    }
+
+    /**
+     * Tries to check whether a table exists for the instance to use and
+     * automatically create it if it doesn't yet exist.
+     *
+     * Note that this hasn't been extensively tested against *every* database
+     * driver available to PDO, so it's therefore possible that this method may
+     * need to be refined/refactored/etc in the future, pending further
+     * research, testing and so on.
+     *
+     * @return bool True when it already exists or when it's successfully
+     *      created; False otherwise.
+     */
+    public function checkTablesPDO(): bool
+    {
+        /** Try to determine which kind of query to build. */
+        if (\preg_match('~^sqlite:[^:]~i', $this->PDOdsn)) {
+            /** SQLite (excluding usage for in-memory and temporary tables). */
+            $Check = 'SELECT COUNT(*) FROM `sqlite_master` WHERE `type` = \'table\' AND `name` = \'Cache\'';
+        } elseif (\preg_match('~^informix:~i', $this->PDOdsn)) {
+            /** Informix. */
+            $Check = 'SELECT COUNT(*) FROM `systables` WHERE `tabname` = \'Cache\'';
+        } elseif (\preg_match('~^firebird:~i', $this->PDOdsn)) {
+            /** Firebird/Interbase. */
+            $Check = 'SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = \'Cache\'';
+        } else {
+            /** Standard fallback for everything else (MySQL, Oracle, PostgreSQL, etc). */
+            $Check = 'SELECT COUNT(*) FROM `information_schema`.`tables` WHERE `TABLE_NAME` = \'Cache\'';
+        }
+
+        /** Try to build the query. Fail if exceptions are generated. */
+        try {
+            $Exists = $this->WorkingData->query($Check);
+        } catch (\PDOException $Exception) {
+            $this->Exceptions[] = $Exception->getMessage();
+            return false;
+        }
+
+        /** In case of exceptions being silenced. */
+        if (!\is_object($Exists) || !\is_a($Exists, '\PDOStatement')) {
+            return false;
+        }
+
+        /** Time to perform our checks and to create the table if necessary. */
+        $Exists = $Exists->fetch(\PDO::FETCH_NUM);
+        if (empty($Exists[0])) {
+            $this->WorkingData->exec('CREATE TABLE `Cache` (`Key` VARCHAR(128) PRIMARY KEY, `Data` TEXT, `Time` INT)');
+            $Exists = $this->WorkingData->query($Check);
+            if (\is_object($Exists) && \is_a($Exists, '\PDOStatement')) {
+                $Exists = $Exists->fetch(\PDO::FETCH_NUM);
+                if (empty($Exists[0])) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Get a cache entry.
+     *
+     * @param string $Entry The name of the cache entry to get.
+     * @return mixed The retrieved cache entry, or false on failure (e.g., if the cache entry doesn't exist).
+     */
+    public function getEntry(string $Entry)
+    {
+        $Index = $Entry;
+        $Entry = $this->Prefix . $Entry;
+        $this->enforceKeyLimit($Entry);
+        if ($this->Using === 'APCu') {
+            return $this->unserializeEntry(apcu_fetch($Entry));
+        }
+        if ($this->Using === 'Memcached') {
+            $Out = $this->WorkingData->get($Entry);
+            if ($Out === false) {
+                if (isset($this->Indexes[$Index])) {
+                    unset($this->Indexes[$Index]);
+                    $this->ModifiedIndexes = true;
+                }
+            } elseif (!isset($this->Indexes[$Index])) {
+                $this->Indexes[$Index] = true;
+                $this->ModifiedIndexes = true;
+            }
+            return $this->unserializeEntry($Out);
+        }
+        if ($this->Using === 'Redis') {
+            return $this->unserializeEntry($this->WorkingData->get($Entry));
+        }
+        if ($this->Using === 'PDO') {
+            $PDO = $this->WorkingData->prepare(self::GET_QUERY);
+            if ($PDO !== false && $PDO->execute([':key' => $Entry])) {
+                $Data = $PDO->fetch(\PDO::FETCH_ASSOC);
+                if (!isset($Data['Data'], $Data['Time'])) {
+                    return false;
+                }
+                if ($Data['Time'] > 0 && $Data['Time'] < \time()) {
+                    $this->clearExpiredPDO();
+                    return false;
+                }
+                if (\substr($Data['Data'], 0, 3) === 'gz:') {
+                    $Data['Data'] = \gzdecode(\base64_decode(\substr($Data['Data'], 3)));
+                }
+                return $this->unserializeEntry($Data['Data']);
+            }
+            return false;
+        }
+        if (\is_array($this->WorkingData) && isset($this->WorkingData[$Entry])) {
+            if (isset($this->WorkingData[$Entry]['Data']) && !empty($this->WorkingData[$Entry]['Time'])) {
+                if ($this->WorkingData[$Entry]['Time'] <= 0 || $this->WorkingData[$Entry]['Time'] > \time()) {
+                    return $this->unserializeEntry($this->WorkingData[$Entry]['Data']);
+                }
+                unset($this->WorkingData[$Entry]);
+                $this->Modified = true;
+                return false;
+            }
+            return $this->unserializeEntry($this->WorkingData[$Entry]);
+        }
+        return false;
+    }
+
+    /**
+     * Set a cache entry.
+     *
+     * @param string $Key The name of the cache entry to set.
+     * @param mixed $Value The value of the cache entry to set.
+     * @param int $TTL The number of seconds that the cache entry should live.
+     * @return bool True on success; False on failure.
+     */
+    public function setEntry(string $Key, $Value, int $TTL = 3600): bool
+    {
+        $Index = $Key;
+        $Key = $this->Prefix . $Key;
+        $this->enforceKeyLimit($Key);
+        $Value = $this->serializeEntry($Value);
+        if ($this->Using === 'APCu') {
+            if (apcu_store($Key, $Value, $TTL)) {
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'Memcached') {
+            if ($TTL >= 2592000) {
+                $TTL += \time();
+            }
+            if ($this->WorkingData->set($Key, $Value, $TTL)) {
+                if (!isset($this->Indexes[$Index])) {
+                    $this->Indexes[$Index] = true;
+                    $this->ModifiedIndexes = true;
+                }
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'Redis') {
+            if ($TTL < 1) {
+                if ($this->WorkingData->set($Key, $Value)) {
+                    return $this->Modified = true;
+                }
+                return false;
+            }
+            if ($this->WorkingData->set($Key, $Value, $TTL)) {
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'PDO') {
+            $PDO = $this->WorkingData->prepare(self::SET_QUERY);
+            if ($TTL > 0) {
+                $TTL += \time();
+            }
+            if (\strlen($Value) > 65536) {
+                $Value = 'gz:' . \base64_encode(\gzencode($Value, 9));
+            }
+            if ($PDO !== false && $PDO->execute([':key' => $Key, ':data' => $Value, ':time' => $TTL])) {
+                return ($PDO->rowCount() > 0 && $this->Modified = true);
+            }
+            return false;
+        }
+        if (\is_array($this->WorkingData)) {
+            if ($TTL > 0) {
+                $TTL += \time();
+                $this->WorkingData[$Key] = ['Data' => $Value, 'Time' => $TTL];
+            } else {
+                $this->WorkingData[$Key] = $Value;
+            }
+            return $this->Modified = true;
+        }
+        return false;
+    }
+
+    /**
+     * Set multiple cache entries.
+     *
+     * @param array $Entries The entries to set (array of [key => data, or key => ['data' => data, 'time' => ttl]]).
+     * @return bool True on success; False on failure.
+     */
+    public function setEntries(array $Entries): bool
+    {
+        $Success = false;
+        if ($this->Using === 'APCu') {
+            $Working = [];
+            foreach ($Entries as $Key => $Value) {
+                if (\is_array($Value) && isset($Value['Time'], $Value['Data'])) {
+                    $TTL = $Value['Time'];
+                    $Value = $Value['Data'];
+                } else {
+                    $TTL = 0;
+                }
+                if (!isset($Working[$TTL])) {
+                    $Working[$TTL] = [];
+                }
+                $Key = $this->Prefix . $Key;
+                $this->enforceKeyLimit($Key);
+                $Value = $this->serializeEntry($Value);
+                $Working[$TTL][$Key] = $Value;
+            }
+            \ksort($Working, \SORT_NUMERIC);
+            foreach ($Working as $TTL => $Values) {
+                if (apcu_store($Values, null, $TTL)) {
+                    $Success = $this->Modified = true;
+                }
+            }
+            return $Success;
+        }
+        if ($this->Using === 'Memcached') {
+            $Working = [];
+            foreach ($Entries as $Key => $Value) {
+                if (\is_array($Value) && isset($Value['Time'], $Value['Data'])) {
+                    $TTL = $Value['Time'];
+                    $Value = $Value['Data'];
+                } else {
+                    $TTL = 0;
+                }
+                if ($TTL >= 2592000) {
+                    $TTL += \time();
+                }
+                if (!isset($Working[$TTL])) {
+                    $Working[$TTL] = [];
+                }
+                $Index = $Key;
+                $Key = $this->Prefix . $Key;
+                $this->enforceKeyLimit($Key);
+                $Value = $this->serializeEntry($Value);
+                $Working[$TTL][$Key] = $Value;
+            }
+            \ksort($Working, \SORT_NUMERIC);
+            foreach ($Working as $TTL => $Values) {
+                if ($this->WorkingData->setMulti($Values, $TTL)) {
+                    if (!isset($this->Indexes[$Index])) {
+                        $this->Indexes[$Index] = true;
+                        $this->ModifiedIndexes = true;
+                    }
+                    $Success = $this->Modified = true;
+                }
+            }
+            return $Success;
+        }
+        if ($this->Using === 'Redis') {
+            $Working = [];
+            foreach ($Entries as $Key => $Value) {
+                if (\is_array($Value) && isset($Value['Time'], $Value['Data'])) {
+                    $TTL = $Value['Time'];
+                    $Value = $Value['Data'];
+                } else {
+                    $TTL = 0;
+                }
+                if (!isset($Working[$TTL])) {
+                    $Working[$TTL] = [];
+                }
+                $Key = $this->Prefix . $Key;
+                $this->enforceKeyLimit($Key);
+                $Value = $this->serializeEntry($Value);
+                $Working[$TTL][$Key] = $Value;
+            }
+            \ksort($Working, \SORT_NUMERIC);
+            foreach ($Working as $TTL => $Values) {
+                if ($TTL < 1) {
+                    if ($this->WorkingData->mset($Values)) {
+                        $Success = $this->Modified = true;
+                    }
+                    continue;
+                }
+                if ($this->WorkingData->msetex($Values, $TTL)) {
+                    $Success = $this->Modified = true;
+                }
+            }
+            return $Success;
+        }
+        if ($this->Using === 'PDO') {
+            $PDO = $this->WorkingData->prepare(self::SET_QUERY);
+            try {
+                $this->WorkingData->beginTransaction();
+                foreach ($Entries as $Key => $Value) {
+                    if (\is_array($Value) && isset($Value['Time'], $Value['Data'])) {
+                        $TTL = $Value['Time'];
+                        $Value = $Value['Data'];
+                    } else {
+                        $TTL = 0;
+                    }
+                    $Key = $this->Prefix . $Key;
+                    $this->enforceKeyLimit($Key);
+                    $Value = $this->serializeEntry($Value);
+                    if ($TTL > 0) {
+                        $TTL += \time();
+                    }
+                    if (\strlen($Value) > 65536) {
+                        $Value = 'gz:' . \base64_encode(\gzencode($Value, 9));
+                    }
+                    if ($PDO !== false && $PDO->execute([':key' => $Key, ':data' => $Value, ':time' => $TTL]) && $PDO->rowCount() > 0) {
+                        $Success = $this->Modified = true;
+                    }
+                }
+                $this->WorkingData->commit();
+            } catch (\PDOException $Exception) {
+                $this->WorkingData->rollback();
+                $this->Exceptions[] = $Exception->getMessage();
+            }
+            return $Success;
+        }
+        if (\is_array($this->WorkingData)) {
+            foreach ($Entries as $Key => $Value) {
+                if (\is_array($Value) && isset($Value['Time'], $Value['Data'])) {
+                    $TTL = $Value['Time'];
+                    $Value = $Value['Data'];
+                } else {
+                    $TTL = 0;
+                }
+                $Key = $this->Prefix . $Key;
+                $this->enforceKeyLimit($Key);
+                $Value = $this->serializeEntry($Value);
+                if ($TTL > 0) {
+                    $TTL += \time();
+                    $this->WorkingData[$Key] = ['Data' => $Value, 'Time' => $TTL];
+                } else {
+                    $this->WorkingData[$Key] = $Value;
+                }
+                $Success = $this->Modified = true;
+            }
+        }
+        return $Success;
+    }
+
+    /**
+     * Delete a specific cache entry.
+     *
+     * @param string $Entry The name of the cache entry to delete.
+     * @return bool True on success; False on failure.
+     */
+    public function deleteEntry(string $Entry): bool
+    {
+        $Index = $Entry;
+        $Entry = $this->Prefix . $Entry;
+        $this->enforceKeyLimit($Entry);
+        if ($this->Using === 'APCu') {
+            if (apcu_delete($Entry)) {
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'Memcached') {
+            if ($this->WorkingData->delete($Entry)) {
+                if (isset($this->Indexes[$Index])) {
+                    unset($this->Indexes[$Index]);
+                    $this->ModifiedIndexes = true;
+                }
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'Redis') {
+            if ($this->WorkingData->del($Entry)) {
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'PDO') {
+            $PDO = $this->WorkingData->prepare(self::DELETE_QUERY);
+            if ($PDO !== false && $PDO->execute([':key' => $Entry])) {
+                return ($PDO->rowCount() > 0 && $this->Modified = true);
+            }
+            return false;
+        }
+        if (\is_array($this->WorkingData)) {
+            if (isset($this->WorkingData[$Entry])) {
+                unset($this->WorkingData[$Entry]);
+                return $this->Modified = true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Delete a limited subset of all cache entries.
+     *
+     * @param string $Pattern The pattern for which entries to delete.
+     * @return bool True on success; False on failure.
+     */
+    public function deleteAllEntriesWhere(string $Pattern): bool
+    {
+        if ($this->Using === 'APCu') {
+            if (\strlen($this->Prefix)) {
+                $Pattern = \preg_replace('~(?!\\\\)\^~', '^' . $this->Prefix, $Pattern);
+            }
+            $Try = new \APCUIterator($Pattern);
+            if ($Try->getTotalCount() > 0 && apcu_delete($Try)) {
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'Memcached') {
+            $Indexes = $this->Indexes;
+            $Success = false;
+            foreach ($Indexes as $Index => $Unused) {
+                if (!\preg_match($Pattern, $Index)) {
+                    continue;
+                }
+                if ($this->WorkingData->delete($Index) && isset($this->Indexes[$Index])) {
+                    unset($this->Indexes[$Index]);
+                    $Success = $this->ModifiedIndexes = true;
+                }
+            }
+            return $Success;
+        }
+        if ($this->Using === 'PDO') {
+            $Success = false;
+            $Entries = $this->getAllEntries();
+            $PDO = $this->WorkingData->prepare(self::DELETE_QUERY);
+            try {
+                $this->WorkingData->beginTransaction();
+                foreach ($Entries as $EntryName => $EntryData) {
+                    if (!\preg_match($Pattern, $EntryName)) {
+                        continue;
+                    }
+                    $EntryName = $this->Prefix . $EntryName;
+                    $this->enforceKeyLimit($EntryName);
+                    if ($PDO !== false && $PDO->execute([':key' => $EntryName]) && $PDO->rowCount() > 0) {
+                        $Success = $this->Modified = true;
+                    }
+                }
+                $this->WorkingData->commit();
+            } catch (\PDOException $Exception) {
+                $this->WorkingData->rollback();
+                $this->Exceptions[] = $Exception->getMessage();
+            }
+            return $Success;
+        }
+        $Failure = false;
+        $Hit = false;
+        foreach ($this->getAllEntries() as $EntryName => $EntryData) {
+            if (\preg_match($Pattern, $EntryName)) {
+                $Hit = true;
+                if (!$this->deleteEntry($EntryName)) {
+                    $Failure = true;
+                }
+            }
+        }
+        return ($Hit && !$Failure);
+    }
+
+    /**
+     * Increment an integer cache entry.
+     *
+     * @param string $Key The name of the cache entry to increment.
+     * @param int $Value The value to increment.
+     * @param int $TTL The number of seconds that the cache entry should live.
+     * @return bool True on success; False on failure.
+     */
+    public function incEntry(string $Key, int $Value = 1, int $TTL = 0): bool
+    {
+        if ($this->Using !== 'PDO') {
+            $Key = $this->Prefix . $Key;
+            $this->enforceKeyLimit($Key);
+        }
+        $Success = null;
+        if ($this->Using === 'APCu') {
+            $Try = apcu_inc($Key, $Value, $Success, $TTL);
+            $Success = $Try !== false;
+        } elseif ($this->Using === 'Memcached') {
+            if ($TTL >= 2592000) {
+                $TTL += \time();
+            }
+            $Success = $this->WorkingData->increment($Key, $Value, 1, $TTL);
+        } elseif ($this->Using === 'Redis') {
+            $Success = $this->WorkingData->incrBy($Key, $Value);
+        } elseif ($this->Using === 'PDO') {
+            if ($TTL > 0) {
+                $TTL += \time();
+            }
+            $Previous = $this->getEntry($Key);
+            if (\is_numeric($Previous)) {
+                $Value += $Previous;
+            }
+            $Key = $this->Prefix . $Key;
+            $this->enforceKeyLimit($Key);
+            $PDO = $this->WorkingData->prepare(self::SET_QUERY);
+            if ($PDO !== false && $PDO->execute([':key' => $Key, ':data' => $Value, ':time' => $TTL])) {
+                $Success = ($PDO->rowCount() > 0);
+            }
+        } elseif (\is_array($this->WorkingData)) {
+            if (isset($this->WorkingData[$Key])) {
+                if (
+                    \is_array($this->WorkingData[$Key]) &&
+                    isset($this->WorkingData[$Key]['Data']) &&
+                    \is_numeric($this->WorkingData[$Key]['Data'])
+                ) {
+                    $Value += $this->WorkingData[$Key]['Data'];
+                } elseif (\is_numeric($this->WorkingData[$Key])) {
+                    $Value += $this->WorkingData[$Key];
+                }
+            }
+            if ($TTL > 0) {
+                $TTL += \time();
+                $this->WorkingData[$Key] = ['Data' => $Value, 'Time' => $TTL];
+            } else {
+                $this->WorkingData[$Key] = $Value;
+            }
+            $Success = true;
+        }
+        if ($Success === null || $Success === false) {
+            return false;
+        }
+        return $this->Modified = true;
+    }
+
+    /**
+     * Decrement an integer cache entry.
+     *
+     * @param string $Key The name of the cache entry to decrement.
+     * @param int $Value The value to decrement.
+     * @param int $TTL The number of seconds that the cache entry should live.
+     * @return bool True on success; False on failure.
+     */
+    public function decEntry(string $Key, int $Value = 1, int $TTL = 0): bool
+    {
+        if ($this->Using !== 'PDO') {
+            $Key = $this->Prefix . $Key;
+            $this->enforceKeyLimit($Key);
+        }
+        $Success = null;
+        if ($this->Using === 'APCu') {
+            $Try = apcu_dec($Key, $Value, $Success, $TTL);
+            $Success = $Try !== false;
+        } elseif ($this->Using === 'Memcached') {
+            if ($TTL >= 2592000) {
+                $TTL += \time();
+            }
+            $Success = $this->WorkingData->decrement($Key, $Value, 1, $TTL);
+        } elseif ($this->Using === 'Redis') {
+            $Success = $this->WorkingData->decrBy($Key, $Value);
+        } elseif ($this->Using === 'PDO') {
+            if ($TTL > 0) {
+                $TTL += \time();
+            }
+            $Previous = $this->getEntry($Key);
+            if (\is_numeric($Previous)) {
+                $Value -= $Previous;
+            }
+            $Key = $this->Prefix . $Key;
+            $this->enforceKeyLimit($Key);
+            $PDO = $this->WorkingData->prepare(self::SET_QUERY);
+            if ($PDO !== false && $PDO->execute([':key' => $Key, ':data' => $Value, ':time' => $TTL])) {
+                $Success = ($PDO->rowCount() > 0);
+            }
+        } elseif (\is_array($this->WorkingData)) {
+            if (isset($this->WorkingData[$Key])) {
+                if (
+                    \is_array($this->WorkingData[$Key]) &&
+                    isset($this->WorkingData[$Key]['Data']) &&
+                    \is_numeric($this->WorkingData[$Key]['Data'])
+                ) {
+                    $Value -= $this->WorkingData[$Key]['Data'];
+                } elseif (\is_numeric($this->WorkingData[$Key])) {
+                    $Value -= $this->WorkingData[$Key];
+                }
+            }
+            if ($TTL > 0) {
+                $TTL += \time();
+                $this->WorkingData[$Key] = ['Data' => $Value, 'Time' => $TTL];
+            } else {
+                $this->WorkingData[$Key] = $Value;
+            }
+            $Success = true;
+        }
+        if ($Success === null || $Success === false) {
+            return false;
+        }
+        return $this->Modified = true;
+    }
+
+    /**
+     * Clears the entire cache (prefixes have no effect here).
+     *
+     * @return bool True on success; False on failure.
+     */
+    public function clearCache(): bool
+    {
+        if ($this->Using === 'APCu') {
+            return $this->Modified = apcu_clear_cache();
+        }
+        if ($this->Using === 'Memcached') {
+            if ($this->WorkingData->flush()) {
+                $this->Indexes = [];
+                $this->ModifiedIndexes = false;
+                return $this->Modified = true;
+            }
+            return false;
+        }
+        if ($this->Using === 'Redis') {
+            return ($this->WorkingData->flushDb() && ($this->Modified = true));
+        }
+        if ($this->Using === 'PDO') {
+            $PDO = $this->WorkingData->prepare(self::CLEAR_QUERY);
+            if ($PDO !== false && $PDO->execute()) {
+                return ($PDO->rowCount() > 0 && $this->Modified = true);
+            }
+            return false;
+        }
+        if (\is_array($this->WorkingData)) {
+            $this->WorkingData = [];
+            return $this->Modified = true;
+        }
+        return false;
+    }
+
+    /**
+     * Get all cache entries.
+     *
+     * @return array An associative array containing all existent cache entries.
+     */
+    public function getAllEntries(): array
+    {
+        if ($this->Using === 'Memcached') {
+            $Output = [];
+            $Indexes = $this->Indexes;
+            foreach ($Indexes as $Index => $Unused) {
+                $Try = $this->getEntry($Index);
+                if ($Try === false) {
+                    unset($this->Indexes[$Index]);
+                    $this->ModifiedIndexes = true;
+                    continue;
+                }
+                $Output[$Index] = $Try;
+            }
+            return $Output;
+        }
+        $PrefixLen = \strlen($this->Prefix);
+        if ($this->Using === 'APCu') {
+            $Data = apcu_cache_info();
+            if (empty($Data['cache_list'])) {
+                return [];
+            }
+            $Output = [];
+            foreach ($Data['cache_list'] as $Entry) {
+                if (
+                    empty($Entry['info']) ||
+                    !\is_string($Entry['info']) ||
+                    ($PrefixLen && \substr($Entry['info'], 0, $PrefixLen) !== $this->Prefix)
+                ) {
+                    continue;
+                }
+                $Key = \substr($Entry['info'], $PrefixLen);
+                $Creation = $Entry['creation_time'] ?? 0;
+                $Entry['Data'] = $this->getEntry($Key);
+                $Output[$Key] = $Entry['ttl'] > 0 ? [
+                    'Data' => $Entry['Data'],
+                    'Time' => $Creation + $Entry['ttl']
+                ] : $Entry['Data'];
+            }
+            return $Output;
+        }
+        $Now = \time();
+        if ($this->Using === 'Redis') {
+            $Output = [];
+            if ($PrefixLen === 0 || \preg_match('~[^\dA-Za-z_]~', $this->Prefix)) {
+                $Keys = $this->WorkingData->keys('*') ?: [];
+            } else {
+                $Keys = $this->WorkingData->keys($this->Prefix . '*') ?: [];
+            }
+            foreach ($Keys as $Key) {
+                if (\strlen($Key) > self::KEY_SIZE_LIMIT || ($PrefixLen && \substr($Key, 0, $PrefixLen) !== $this->Prefix)) {
+                    continue;
+                }
+                $TTL = $this->WorkingData->ttl($Key);
+                $Data = $this->unserializeEntry($this->WorkingData->get($Key));
+                $Output[\substr($Key, $PrefixLen)] = (\is_int($TTL) && $TTL > 0) ? ['Data' => $Data, 'Time' => $TTL + $Now] : $Data;
+            }
+            return $Output;
+        }
+        if ($this->Using === 'PDO') {
+            $this->clearExpiredPDO();
+            if ($this->Prefix === '') {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY);
+            } elseif (\preg_match('~^(?:ibm|mysql|odbc|pgsql|sqlsrv):~i', $this->PDOdsn)) {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY_WPREFIX_CONCAT);
+            } elseif (\preg_match('~^4d:~i', $this->PDOdsn)) {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY_WPREFIX_PLUS);
+            } else {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY_WPREFIX_DPIPE);
+            }
+            if ($PDO !== false && ($this->Prefix === '' ? $PDO->execute() : $PDO->execute([':prefix' => $this->Prefix]))) {
+                $Data = $PDO->fetchAll();
+                if (!\is_array($Data)) {
+                    return [];
+                }
+                $Output = [];
+                foreach ($Data as $Entry) {
+                    if (!\is_array($Entry) || !isset($Entry['Key'], $Entry['Data'], $Entry['Time']) || \strlen($Entry['Key']) > self::KEY_SIZE_LIMIT) {
+                        continue;
+                    }
+                    $Key = \substr($Entry['Key'], $PrefixLen);
+                    if (\substr($Entry['Data'], 0, 3) === 'gz:') {
+                        $Entry['Data'] = \gzdecode(\base64_decode(\substr($Entry['Data'], 3)));
+                    }
+                    $Entry['Data'] = $this->unserializeEntry($Entry['Data']);
+                    $Output[$Key] = $Entry['Time'] > 0 ? ['Data' => $Entry['Data'], 'Time' => $Entry['Time']] : $Entry['Data'];
+                }
+                return $Output;
+            }
+            return [];
+        }
+        if ($Arr = $this->exposeWorkingDataArray()) {
+            $Out = [];
+            foreach ($Arr as $Key => $Entry) {
+                if ($PrefixLen) {
+                    if (\substr($Key, 0, $PrefixLen) !== $this->Prefix) {
+                        continue;
+                    }
+                    $Key = \substr($Key, $PrefixLen);
+                }
+                $Out[$Key] = $this->unserializeEntry($Entry);
+            }
+            return $Out;
+        }
+        return [];
+    }
+
+    /**
+     * Get a limited subset of all available cache entries.
+     *
+     * @param string $Pattern The pattern for which entries to return.
+     * @param string $Replacement An optional replacement for entry names.
+     * @param callable|null $Sort An optional callable to sort entries.
+     * @return array An array of matching entries.
+     */
+    public function getAllEntriesWhere(string $Pattern, string $Replacement = '', ?callable $Sort = null): array
+    {
+        $Set = [];
+        $Now = \time();
+        if ($this->Using === 'Memcached') {
+            $Indexes = $this->Indexes;
+            foreach ($Indexes as $Index => $Unused) {
+                if (!\preg_match($Pattern, $Index)) {
+                    continue;
+                }
+                $Try = $this->getEntry($Index);
+                if ($Try === false) {
+                    unset($this->Indexes[$Index]);
+                    $this->ModifiedIndexes = true;
+                    continue;
+                }
+                $Set[$Index] = $Try;
+            }
+            unset($Try);
+        } else {
+            $PrefixLen = \strlen($this->Prefix);
+        }
+        if ($this->Using === 'APCu') {
+            $Data = apcu_cache_info();
+            if (empty($Data['cache_list'])) {
+                return [];
+            }
+            foreach ($Data['cache_list'] as $Entry) {
+                if (
+                    empty($Entry['info']) ||
+                    !\is_string($Entry['info']) ||
+                    ($PrefixLen && \substr($Entry['info'], 0, $PrefixLen) !== $this->Prefix)
+                ) {
+                    continue;
+                }
+                $Key = \substr($Entry['info'], $PrefixLen);
+                if (!\preg_match($Pattern, $Key)) {
+                    continue;
+                }
+                $Creation = $Entry['creation_time'] ?? 0;
+                $Entry['Data'] = $this->getEntry($Key);
+                $Set[$Key] = $Entry['ttl'] > 0 ? [
+                    'Data' => $Entry['Data'],
+                    'Time' => $Creation + $Entry['ttl']
+                ] : $Entry['Data'];
+            }
+            unset($Data);
+        } elseif ($this->Using === 'Redis') {
+            if ($PrefixLen === 0 || \preg_match('~[^\dA-Za-z_]~', $this->Prefix)) {
+                $Keys = $this->WorkingData->keys('*') ?: [];
+            } else {
+                $Keys = $this->WorkingData->keys($this->Prefix . '*') ?: [];
+            }
+            foreach ($Keys as $Key) {
+                if (\strlen($Key) > self::KEY_SIZE_LIMIT || ($PrefixLen && \substr($Key, 0, $PrefixLen) !== $this->Prefix)) {
+                    continue;
+                }
+                $Index = \substr($Key, $PrefixLen);
+                if (!\preg_match($Pattern, $Index)) {
+                    continue;
+                }
+                $TTL = $this->WorkingData->ttl($Key);
+                $Data = $this->unserializeEntry($this->WorkingData->get($Key));
+                $Set[$Index] = (\is_int($TTL) && $TTL > 0) ? ['Data' => $Data, 'Time' => $TTL + $Now] : $Data;
+            }
+            unset($Keys);
+        } elseif ($this->Using === 'PDO') {
+            $this->clearExpiredPDO();
+            if ($this->Prefix === '') {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY);
+            } elseif (\preg_match('~^(?:ibm|mysql|odbc|pgsql|sqlsrv):~i', $this->PDOdsn)) {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY_WPREFIX_CONCAT);
+            } elseif (\preg_match('~^4d:~i', $this->PDOdsn)) {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY_WPREFIX_PLUS);
+            } else {
+                $PDO = $this->WorkingData->prepare(self::GET_ALL_QUERY_WPREFIX_DPIPE);
+            }
+            if ($PDO !== false && ($this->Prefix === '' ? $PDO->execute() : $PDO->execute([':prefix' => $this->Prefix]))) {
+                $Data = $PDO->fetchAll();
+                if (!\is_array($Data)) {
+                    return [];
+                }
+                foreach ($Data as $Entry) {
+                    if (!\is_array($Entry) || !isset($Entry['Key'], $Entry['Data'], $Entry['Time']) || \strlen($Entry['Key']) > self::KEY_SIZE_LIMIT) {
+                        continue;
+                    }
+                    $Key = \substr($Entry['Key'], $PrefixLen);
+                    if (!\preg_match($Pattern, $Key)) {
+                        continue;
+                    }
+                    if (\substr($Entry['Data'], 0, 3) === 'gz:') {
+                        $Entry['Data'] = \gzdecode(\base64_decode(\substr($Entry['Data'], 3)));
+                    }
+                    $Entry['Data'] = $this->unserializeEntry($Entry['Data']);
+                    $Set[$Key] = $Entry['Time'] > 0 ? ['Data' => $Entry['Data'], 'Time' => $Entry['Time']] : $Entry['Data'];
+                }
+                unset($Data);
+            }
+            unset($PDO);
+        } elseif ($Arr = $this->exposeWorkingDataArray()) {
+            foreach ($Arr as $Key => $Entry) {
+                if ($PrefixLen) {
+                    if (\substr($Key, 0, $PrefixLen) !== $this->Prefix) {
+                        continue;
+                    }
+                    $Key = \substr($Key, $PrefixLen);
+                }
+                if (!\preg_match($Pattern, $Key)) {
+                    continue;
+                }
+                $Set[$Key] = $this->unserializeEntry($Entry);
+            }
+        }
+        $Out = [];
+        foreach ($Set as $EntryName => $EntryData) {
+            if (isset($EntryData['Time']) && $EntryData['Time'] > 0 && $EntryData['Time'] < $Now) {
+                continue;
+            }
+            if ($Replacement !== '') {
+                $EntryName = \preg_replace($Pattern, $Replacement, $EntryName);
+            }
+            $Out[$EntryName] = $EntryData;
+        }
+        if ($Sort !== null && \is_callable($Sort)) {
+            \uasort($Out, $Sort);
+        }
+        return $Out;
+    }
+
+    /**
+     * Clears expired entries from an array-based cache (used for flatfile
+     * caching).
+     *
+     * @param array $Data The array containing the cache data.
+     * @return bool True if anything is cleared; False otherwise.
+     */
+    public function clearExpired(array &$Data): bool
+    {
+        $Cleared = false;
+        $Updated = [];
+        $Now = \time();
+        foreach ($Data as $Key => $Value) {
+            if (\is_array($Value)) {
+                foreach ($Value as &$SubValue) {
+                    if (\is_array($SubValue)) {
+                        if ($this->clearExpired($SubValue)) {
+                            $Cleared = true;
+                        }
+                    }
+                }
+            }
+            if (!\is_array($Value) || !isset($Value['Time']) || $Value['Time'] > $Now) {
+                $Updated[$Key] = $Value;
+            } else {
+                $Cleared = true;
+            }
+        }
+        $Data = $Updated;
+        return $Cleared;
+    }
+
+    /**
+     * Clears expired entries stored via PDO.
+     *
+     * @return bool True if anything is cleared; False otherwise.
+     */
+    public function clearExpiredPDO(): bool
+    {
+        if ($this->Using !== 'PDO' || $this->PDOAlreadyCleared) {
+            return false;
+        }
+        $this->PDOAlreadyCleared = true;
+        $PDO = $this->WorkingData->prepare(self::CLEAR_EXPIRED_QUERY);
+        if ($PDO !== false && $PDO->execute([':time' => \time()])) {
+            if ($PDO->rowCount() > 0) {
+                return $this->Modified = true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Unserialize a returned cache entry if necessary.
+     *
+     * @param mixed $Entry The returned cache entry.
+     * @return mixed An unserialized array, if the returned cache entry is
+     *      a serialized array, else the returned cache entry as verbatim.
+     */
+    public function unserializeEntry($Entry)
+    {
+        if (!\is_string($Entry) || !\preg_match('~^a:\d+:\{.*\}$~s', $Entry)) {
+            return $Entry;
+        }
+        $Arr = \unserialize($Entry);
+        if (\is_array($Arr)) {
+            $this->clearExpired($Arr);
+            return $Arr;
+        }
+        return $Entry;
+    }
+
+    /**
+     * Serialize a cache entry prior to committing if necessary.
+     *
+     * @param mixed $Entry The cache entry to be serialized.
+     * @return mixed The cache entry as verbatim, or a serialized string.
+     */
+    public function serializeEntry($Entry)
+    {
+        return \is_array($Entry) ? (\serialize($Entry) ?: $Entry) : $Entry;
+    }
+
+    /**
+     * Attempt to strip objects from a data set (useful for when data from
+     * untrusted sources might potentially be being cached, which generally
+     * should be avoided anyway due to the security risk, but including
+     * this method here anyway, in case we mightn't have any choice in some
+     * circumstances). To be called by the implementation.
+     *
+     * @param mixed $Entry The data set to strip from.
+     * @return mixed The object-stripped data set.
+     */
+    public function stripObjects($Data)
+    {
+        if (\is_object($Data)) {
+            return false;
+        }
+        if (!\is_array($Data)) {
+            return $Data;
+        }
+        $Output = [];
+        foreach ($Data as $Key => $Value) {
+            if (\is_object($Element)) {
+                continue;
+            }
+            $Output[$Key] = $this->stripObjects($Value);
+        }
+        return $Output;
+    }
+
+    /**
+     * Expose working data array (useful when integrating the instantiated
+     * object to external caching mechanisms). To be called by the
+     * implementation.
+     *
+     * @return array|bool The working data array, or false on error.
+     */
+    public function exposeWorkingDataArray()
+    {
+        if (!\is_array($this->WorkingData)) {
+            return false;
+        }
+        if ($this->clearExpired($this->WorkingData)) {
+            $this->Modified = true;
+        }
+        return $this->WorkingData;
+    }
+
+    /**
+     * Check whether an entry exists via array access.
+     *
+     * @param mixed $Offset The offset (i.e., entry key).
+     * @return bool Whether it exists.
+     */
+    public function offsetExists($Offset): bool
+    {
+        if (!\is_scalar($Offset)) {
+            return false;
+        }
+        $Entry = $this->Prefix . $Offset;
+        $this->enforceKeyLimit($Entry);
+        if ($this->Using === 'APCu') {
+            return apcu_exists($Entry);
+        }
+        if ($this->Using === 'Memcached') {
+            $NotUsed = $this->WorkingData->get($Entry);
+            return $this->WorkingData->getResultCode() === Memcached::MEMCACHED_SUCCESS;
+        }
+        if ($this->Using === 'Redis') {
+            return $this->WorkingData->exists($Entry);
+        }
+        if ($this->Using === 'PDO') {
+            $PDO = $this->WorkingData->prepare(self::GET_QUERY);
+            if ($PDO !== false && $PDO->execute([':key' => $Entry])) {
+                $Data = $PDO->fetch(\PDO::FETCH_ASSOC);
+                return isset($Data['Data'], $Data['Time']) && !($Data['Time'] > 0 && $Data['Time'] < \time());
+            }
+            return false;
+        }
+        if (\is_array($this->WorkingData) && isset($this->WorkingData[$Entry])) {
+            if (isset($this->WorkingData[$Entry]['Data']) && !empty($this->WorkingData[$Entry]['Time'])) {
+                return ($this->WorkingData[$Entry]['Time'] <= 0 || $this->WorkingData[$Entry]['Time'] > \time());
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Fetch an entry via array access.
+     *
+     * Note: "ReturnTypeWillChange" applied due to that "mixed" as a return type
+     * keyword was introduced only since PHP8, and Common Classes Package v2 is
+     * supposed to be compatible with PHP7.2 onward. We can refactor the attribute
+     * out and the return type keyword in for a future major version (e.g., CCPv3).
+     *
+     * @param mixed $Offset The offset (i.e., entry key).
+     * @return mixed The fetched entry.
+     */
+    #[\ReturnTypeWillChange]
+    public function offsetGet($Offset)
+    {
+        return $this->getEntry($Offset);
+    }
+
+    /**
+     * Set an entry via array access.
+     *
+     * @param mixed $Offset The offset (i.e., entry key).
+     * @param mixed $Value The entry value.
+     * @return void
+     */
+    public function offsetSet($Offset, $Value): void
+    {
+        $this->setEntry($Offset, $Value);
+    }
+
+    /**
+     * Destroy an entry via array access.
+     *
+     * @param mixed $Offset The offset (i.e., entry key).
+     * @return void
+     */
+    public function offsetUnset($Offset): void
+    {
+        $this->deleteEntry($Offset);
+    }
+
+    /**
+     * Count cache entries.
+     *
+     * @return int The number of cache entries attached to the current instance.
+     */
+    public function count(): int
+    {
+        if ($this->Using === 'Memcached') {
+            return \count($this->Indexes);
+        }
+        $Output = 0;
+        $PrefixLen = \strlen($this->Prefix);
+        if ($this->Using === 'APCu') {
+            $Data = apcu_cache_info();
+            if (empty($Data['cache_list'])) {
+                return $Output;
+            }
+            foreach ($Data['cache_list'] as $Entry) {
+                if (!empty($Entry['info']) && \is_string($Entry['info']) && $PrefixLen !== 0 && \substr($Entry['info'], 0, $PrefixLen) === $this->Prefix) {
+                    $Output++;
+                }
+            }
+            return $Output;
+        }
+        if ($this->Using === 'Redis') {
+            if ($PrefixLen === 0 || \preg_match('~[^\dA-Za-z_]~', $this->Prefix)) {
+                $Keys = $this->WorkingData->keys('*') ?: [];
+            } else {
+                $Keys = $this->WorkingData->keys($this->Prefix . '*') ?: [];
+            }
+            foreach ($Keys as $Key) {
+                if (\strlen($Key) <= self::KEY_SIZE_LIMIT && $PrefixLen !== 0 && \substr($Key, 0, $PrefixLen) === $this->Prefix) {
+                    $Output++;
+                }
+            }
+            return $Output;
+        }
+        if ($this->Using === 'PDO') {
+            $this->clearExpiredPDO();
+            if ($this->Prefix === '') {
+                $PDO = $this->WorkingData->prepare(self::COUNT_ALL_QUERY);
+            } elseif (\preg_match('~^(?:ibm|mysql|odbc|pgsql|sqlsrv):~i', $this->PDOdsn)) {
+                $PDO = $this->WorkingData->prepare(self::COUNT_ALL_QUERY_WPREFIX_CONCAT);
+            } elseif (\preg_match('~^4d:~i', $this->PDOdsn)) {
+                $PDO = $this->WorkingData->prepare(self::COUNT_ALL_QUERY_WPREFIX_PLUS);
+            } else {
+                $PDO = $this->WorkingData->prepare(self::COUNT_ALL_QUERY_WPREFIX_DPIPE);
+            }
+            if ($PDO !== false && ($this->Prefix === '' ? $PDO->execute() : $PDO->execute([':prefix' => $this->Prefix]))) {
+                $Data = $PDO->fetchAll();
+                return isset($Data[0][0]) && \is_int($Data[0][0]) ? $Data[0][0] : 0;
+            }
+            return 0;
+        }
+        if ($Arr = $this->exposeWorkingDataArray()) {
+            foreach ($Arr as $Key => $Entry) {
+                if ($PrefixLen) {
+                    if (\substr($Key, 0, $PrefixLen) !== $this->Prefix) {
+                        continue;
+                    }
+                }
+                $Output++;
+            }
+        }
+        return $Output;
+    }
+
+    /**
+     * Enforce key size limit.
+     *
+     * @param string $Key The key to check. Transforms the key if it doesn't
+     *      conform; Does nothing otherwise.
+     * @return void
+     */
+    private function enforceKeyLimit(string &$Key): void
+    {
+        /**
+         * SHA512 produces a hash equal to the current key size limit, and
+         * provides sufficient noise for our needs here, so we'll use that.
+         */
+        if (\strlen($Key) > self::KEY_SIZE_LIMIT) {
+            if (
+                ($PrefixLen = \strlen($this->Prefix)) &&
+                (\substr($Key, 0, $PrefixLen) === $this->Prefix) &&
+                ($PrefixLen < self::KEY_SIZE_LIMIT)
+            ) {
+                $Key = $this->Prefix . \substr(\hash('sha512', \substr($Key, $PrefixLen)), 0, self::KEY_SIZE_LIMIT - $PrefixLen);
+                return;
+            }
+            $Key = \hash('sha512', $Key);
+        }
+    }
+
+    /**
+     * Try to enforce the permissions necessary to read and write a file.
+     *
+     * @param string $Directory The directory we're attempting to set
+     *      permissions for.
+     * @return bool True when successful or when not needed; False on failure.
+     */
+    private function tryEnforcePermissions(string $Directory): bool
+    {
+        if ($Directory === '' || !\is_dir($Directory)) {
+            return false;
+        }
+        if (\is_readable($Directory) && \is_writable($Directory)) {
+            return true;
+        }
+        if (!$this->AllowEnforcingPermissions) {
+            return false;
+        }
+        return \chmod($Directory, 0755);
+    }
+}

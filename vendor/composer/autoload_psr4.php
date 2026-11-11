@@ -6,7 +6,9 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'phpMussel\\Core\\' => array($vendorDir . '/phpmussel/core/src'),
     'RobThree\\Auth\\' => array($vendorDir . '/robthree/twofactorauth/lib'),
+    'Maikuolan\\Common\\' => array($vendorDir . '/maikuolan/common/src'),
     'DASPRiD\\Enum\\' => array($vendorDir . '/dasprid/enum/src'),
     'BaconQrCode\\' => array($vendorDir . '/bacon/bacon-qr-code/src'),
 );

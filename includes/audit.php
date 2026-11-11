@@ -31,6 +31,7 @@ function audit_action_category(string $action): string
     switch ($action) {
         case 'ACCESS_DENIED':
         case 'ACCOUNT_LOCKED':
+        case 'UPLOAD_BLOCKED':
         case 'MATERIAL_DELETED':
             return 'danger';
         case 'LOGIN_SUCCESS':

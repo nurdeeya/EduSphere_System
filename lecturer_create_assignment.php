@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ---- Optional assignment file (SR3)
         $file = $_FILES['assignment_file'] ?? null;
         if (is_array($file) && isset($file['error']) && $file['error'] !== UPLOAD_ERR_NO_FILE) {
-            $result = secure_file_upload($file, __DIR__ . '/uploads');
+            $result = secure_file_upload($file, upload_storage_dir());
             if (!upload_succeeded($result)) {
                 $message = is_string($result) ? $result : 'File upload failed.';
                 $message_type = 'error';
@@ -126,8 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             error_log('lecturer_create_assignment (insert): ' . $e->getMessage());
             // Do not leave an orphaned upload behind.
-            if ($uploaded_name !== null && is_file(__DIR__ . '/uploads/' . $uploaded_name)) {
-                @unlink(__DIR__ . '/uploads/' . $uploaded_name);
+            if ($uploaded_name !== null && is_file(upload_storage_dir() . '/' . $uploaded_name)) {
+                @unlink(upload_storage_dir() . '/' . $uploaded_name);
             }
             $message = 'A system error occurred. Please try again later.';
             $message_type = 'error';

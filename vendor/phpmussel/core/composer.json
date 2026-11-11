@@ -1,0 +1,34 @@
+{
+    "name": "phpmussel/core",
+    "description": "phpMussel core",
+    "keywords": ["anti-virus","anti-trojan","anti-malware","anti-exploit","anti-spam","antivirus","uploads","security","protection"],
+    "homepage": "https://phpmussel.github.io/",
+    "license": "GPL-2.0-or-later",
+    "support": {
+        "issues": "https://github.com/phpMussel/Core/issues",
+        "source": "https://github.com/phpMussel/Core",
+        "docs": "https://github.com/phpMussel/Docs",
+        "rss": "https://github.com/phpMussel/Core/releases.atom"
+    },
+    "require": {
+        "php": ">=7.2.0",
+        "maikuolan/common": "^2.14",
+        "ext-pcre": "*"
+    },
+    "suggest": {
+        "ext-apcu": ">=4",
+        "ext-bz2": "*",
+        "ext-curl": "*",
+        "ext-lzf": "*",
+        "ext-rar": "*",
+        "ext-zip": "*"
+    },
+    "scripts": {
+        "test": "@php tests.php"
+    },
+    "autoload": {
+        "psr-4": {
+            "phpMussel\\Core\\": "src/"
+        }
+    }
+}

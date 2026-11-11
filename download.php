@@ -2,6 +2,7 @@
 session_start();
 require_once 'config/security.php';
 require_once 'config/database.php';
+require_once __DIR__ . '/config/upload.php';
 require_once __DIR__ . '/includes/access.php';
 
 // ---- Authentication: any fully authenticated (MFA-verified) student or lecturer.
@@ -116,12 +117,12 @@ try {
     exit('A system error occurred. Please try again later.');
 }
 
-// ---- Path-traversal defence: stored name must be a bare "<32 hex>.<ext>" and resolve inside uploads/.
+// ---- Path-traversal defence: stored name must be a bare "<32 hex>.<ext>" and resolve inside the private storage folder.
 if ($stored_name !== basename($stored_name) || !preg_match('/^[a-f0-9]{32}\.[A-Za-z0-9]{1,10}$/', $stored_name)) {
     deny($pdo, $user_id, "$type id=$id has malformed stored filename");
 }
 
-$upload_root = realpath(__DIR__ . '/uploads');
+$upload_root = realpath(upload_storage_dir());
 $full_path   = $upload_root !== false ? realpath($upload_root . DIRECTORY_SEPARATOR . $stored_name) : false;
 
 if (

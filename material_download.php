@@ -3,11 +3,12 @@
 // Mirrors the protections in download.php (kept separate so download.php is untouched):
 //   - MFA-verified student or lecturer only
 //   - lecturer: own materials only; student: only materials of a lecturer they are enrolled with
-//   - filename is NEVER taken from the request; stored name must be "<32 hex>.<ext>" inside uploads/
+//   - filename is NEVER taken from the request; stored name must be "<32 hex>.<ext>" inside the private storage folder
 //   - one uniform 403 for "missing" and "not allowed" (no id enumeration), denial is audit-logged
 session_start();
 require_once 'config/security.php';
 require_once 'config/database.php';
+require_once __DIR__ . '/config/upload.php';
 require_once __DIR__ . '/includes/access.php';
 
 if (
@@ -73,7 +74,7 @@ if ($stored_name !== basename($stored_name) || !preg_match('/^[a-f0-9]{32}\.[a-z
     material_deny($pdo, $user_id, "learning_material id=$id malformed stored filename");
 }
 
-$upload_root = realpath(__DIR__ . '/uploads');
+$upload_root = realpath(upload_storage_dir());
 $full_path   = $upload_root !== false ? realpath($upload_root . DIRECTORY_SEPARATOR . $stored_name) : false;
 if (
     $upload_root === false || $full_path === false ||

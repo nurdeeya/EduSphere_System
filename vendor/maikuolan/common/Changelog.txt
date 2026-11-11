@@ -1,0 +1,763 @@
+Common classes package changelog.
+
+=== VERSION RELEASE GUIDELINES ===
+The common classes package adopts and adheres to SemVer (Semantic Versioning).
+For more information about SemVer, please refer to:
+- https://semver.org/
+
+Detailed version release guidelines for the common classes package can be
+found at:
+- https://github.com/Maikuolan/Common/blob/v2/CONTRIBUTING.md#the-common-classes-package-code-style-guidelines
+
+=== Version/Release 2.16.1 ===
+PATCH RELEASE.
+
+- [2026.04.19; Bug-fix]: Found a few typos in the code for manually overriding
+  CURLOPT_SSL_VERIFYPEER at the request handler that would've prevented it from
+  working as intended (although not currently actually used by any
+  implementations, thus why not discovered until now); Fixed.
+
+- [2026.04.21]: Added a fallback to the request handler for sending requests
+  using streams when curl isn't available, extending functionality of the
+  request handler to those to whom curl isn't available.
+
+- [2026.04.24]: Added support for FTP/S requests to the request handler. Added
+  partial support for SFTP and TFTP requests to the request handler.
+
+- [2026.04.27]: Renaming "_docs" to "docs" to help with certain kinds of
+  external tooling which seem to be entirely unable to detect documentation if
+  said documentation isn't stored in a directory named specifically as "docs"
+  (despite said documentation's location already being clearly identified in
+  both the README file as well as the composer.json file).
+
+- [2026.04.28]: Added support for TCP and UDP requests to the request handler.
+  Added partial support for GOPHER requests to the request handler. Rewrote the
+  code for determining and handling available functionality at the request
+  handler (i.e., for whether to use curl versus whether to use fopen/fsockopen
+  with streams and so on).
+
+- [2026.04.30]: Added support for FILE requests to the request handler. Added a
+  new parameter to the request method of the request handler to limit the
+  number of segments to receive.
+
+Caleb M (Maikuolan),
+1 May, 2026.
+
+=== Version/Release 2.16.0 ===
+MINOR RELEASE.
+
+- [2026.03.16]: IPHeader can now be treated as a string.
+
+- [2026.03.17]: Added a new class to the repository, "LazyArray". For cases
+  where it might be necessary to process some data in some way to generate an
+  array, where that array mightn't always be needed for every request, but
+  where the process to generate it must always be defined at some specific
+  point in the code which is to be always executed, LazyArray provides a means
+  by which the process can be defined while deferring its actual execution
+  until either the array is actually accessed where needed (i.e., the object is
+  treated as an array) or the execution is triggered manually, which could
+  potentially improve performance at the implementation in some cases by
+  reducing unnecessary processing. Added support for !lazy tags to the YAML
+  handler, allowing processing of the tagged data to be deferred until a later
+  time. Added LazyArray support to the L10N handler and to dataTraverse.
+  Various minor performance improvements.
+
+- [2026.03.18]: Use RedisException for failed Redis connections.
+
+- [2026.03.22]: Optimised the logic for when clearExpiredPDO triggers, which
+  should improve performance a little for those using PDO for caching.
+
+Caleb M (Maikuolan),
+24 March, 2026.
+
+=== Version/Release 2.15.0 ===
+MINOR RELEASE.
+
+- [2026.03.01; Bug-fix]: The YAML handler, in the context of a sequence,
+  sometimes wouldn't distinguish between compact nested mapping and normal
+  double-quoted strings; Fixed.
+
+- [2026.03.10]: Added optional support for !php/object tags to the YAML
+  handler, allowing for serialisation/unserialisation of arbitrary PHP data
+  when enabled via the appropriate properties of the instance. When
+  reconstructing strings, if a string isn't UTF-8 (e.g., binary sourced from
+  images, archives, etc), it'll be rendered as base-64 with the !!binary tag
+  attached. Added support for !php/const tags to the YAML handler.
+
+- [2026.03.12]: Added a new public method, setEntries, to the cache handler,
+  allowing multiple cache entries to be set at the same time.
+
+Caleb M (Maikuolan),
+13 March, 2026.
+
+=== Version/Release 2.14.3 ===
+PATCH RELEASE.
+
+- [2025.11.03]: Since PHP8, curl_close() has had no effect, and has been
+  deprecated as of PHP 8.5; Accordingly, where used, it has been guarded by the
+  PHP version ID.
+
+- [2025.11.07]: Added ArrayAccess support to the cache handler.
+
+- [2025.11.21]: Added PHP 8.5 to workflows.
+
+- [2025.12.24]: Added Countable support to the cache handler, the delayed file
+  IO class, the events orchestrator, the YAML handler, and the L10N handler.
+
+- [2025.12.30]: Added ArrayAccess, Countable, and IteratorAggregate support to
+  the complex string handler.
+
+Caleb M (Maikuolan),
+30 December, 2025.
+
+=== Version/Release 2.14.2 ===
+PATCH RELEASE.
+
+- [2025.08.20]: dataTraverse can now use array_keys(), array_flip(),
+  array_pop(), and array_shift() on arrays.
+
+- [2025.09.23; Bug-fix]: The request handler sometimes wasn't respecting
+  disabled channels properly when supplied as a normal, non-CSV list;
+  Fixed.
+
+- [2025.10.07]: dataTraverse can now use floor() and ceil() on numeric
+  values.
+
+- [2025.10.17]: Slightly improved ISO 15924 support.
+
+Caleb M (Maikuolan),
+17 October, 2025.
+
+=== Version/Release 2.14.1 ===
+PATCH RELEASE.
+
+- [2025.07.13]: Added Aegean, Osmanya, Hmong, Adlam, N'Ko, and Malayalam
+  support to the number formatter.
+
+- [2025.08.05]: Added basic math support to the operation handler.
+
+Caleb M (Maikuolan),
+12 August, 2025.
+
+=== Version/Release 2.14.0 ===
+MINOR RELEASE.
+
+- [2025.06.22; Maikuolan]: Added Etruscan support to the number formatter,
+  added guards for a conversion set's upper and lower limits (so that the
+  formatter will now just fail with an empty string instead of returning
+  incorrect values where the given number falls outside the conversion set's
+  upper and lower limits), improved the unformatter, and improved tests.
+
+- [2025.06.24; Bug-fix; Maikuolan]: Fixed an implicit conversion from
+  float-string to int loses precision deprecation notice caused by the tests
+  for the YAML handler.
+
+- [2025.06.24; Maikuolan]: Improved type-guarding for the YAML handler's
+  scalarToString method. Added phpDoc comments for thrown errors/exceptions.
+  Added support for Nette/NEON-style entities to the YAML handler.
+
+- [2025.06.25; Maikuolan]: Improved the support for embedding JSON within YAML
+  to the YAML handler so that switching syntax mid-parse is less messy.
+
+- [2025.06.29; Maikuolan]: Added support for compact nested mapping to the YAML
+  handler.
+
+- [2025.07.01; Maikuolan]: Added support for proxies to the request handler
+  (#10).
+
+- [2025.07.02; Maikuolan]: Added a context attribute to mark certain properties
+  as sensitive for the purpose of reducing the risk of exposure via accidental
+  var_dump of any instances of the applicable classes in production (though, as
+  attributes were introduced with PHP 8.0, this change won't have any effect
+  when running on older PHP versions; affected code is also guarded to prevent
+  backwards-compatibilty problems). Improved the number formatter's
+  unformatter.
+
+- [2025.07.02; Bug-fix; Maikuolan]: The number formatter formatting some
+  specific Chinese numerals incorrectly in some cases; Fixed.
+
+Caleb M (Maikuolan),
+2 July, 2025.
+
+=== Version/Release 2.13.0 ===
+MINOR RELEASE.
+
+- [2025.02.05; Maikuolan]: Added some limited support to the number formatter
+  class for unformatting a formatted number.
+
+- [2025.02.12; Maikuolan]: Updated the L10N handler's language rules.
+
+- [2025.04.10; Maikuolan]: The operation handler can now define and populate
+  variables within the given traversable data.
+
+Caleb M (Maikuolan),
+10 April, 2025.
+
+=== Version/Release 2.12.3 ===
+PATCH RELEASE.
+
+- [2024.09.20; Bug-fix; Maikuolan]: The cache handler failed to unserialise
+  multiline data when fetching cache entries due to a missing regex flag;
+  Fixed.
+
+- [2024.11.06; Maikuolan]: Added PHP 8.4 to workflows.
+
+Caleb M (Maikuolan),
+November 6, 2024.
+
+=== Version/Release 2.12.2 ===
+PATCH RELEASE.
+
+- [2024.07.02; Bug-fix; Maikuolan]: 3-digit and script-based codes not
+  recognised by arrayFromL10nToArray; Fixed.
+
+- [2024.07.16; Maikuolan]: Added list functionality to the YAML handler (i.e.,
+  using flow sequences in keys to assign a singular value to all of those keys
+  at once, or to determine the keys to use to convert corresponding flow
+  sequences in values to flow maps).
+
+- [2024.08.02; Maikuolan]: Added a guard to the request handler's request
+  method to fail if curl_init doesn't exist.
+
+- [2024.08.08; Maikuolan]: Added ISO 15924 support to the L10N handler.
+
+Caleb M (Maikuolan),
+August 8, 2024.
+
+=== Version/Release 2.12.1 ===
+PATCH RELEASE.
+
+- [2024.03.21; Maikuolan]: Slightly improved guards for the IPHeader class
+  trySource method.
+
+- [2024.05.30; Maikuolan]: PHP 8.4 compatibility patch.
+
+- [2024.06.26; Bug-fix; Maikuolan]: Number formatter showing some Armenian
+  numerals incorrectly; Fixed.
+
+- [2024.06.26; Maikuolan]: Added Ge'ez/Ethiopic support to the number formatter
+  and performed some minor refactoring.
+
+Caleb M (Maikuolan),
+June 26, 2024.
+
+=== Version/Release 2.12.0 ===
+MINOR RELEASE.
+
+- [2023.12.01; Maikuolan]: Improved escaping. Added support for specifying a
+  Redis database number to the cache handler (CIDRAM/CIDRAM#540).
+
+- [2023.12.08; Bug-fix; Maikuolan]: Not escaping keys when reconstructing YAML
+  data could prevent successful reprocessing of those keys if said keys
+  contained any hashes or backslashes. The solution is to enforce escaping of
+  keys when such bytes are detected, regardless of how the property for quoting
+  keys is defined. Accordingly, that's been done, and a new method added for
+  that purpose (CIDRAM/CIDRAM#547).
+
+- [2023.12.24; Maikuolan]: The request handler can now handle custom methods.
+
+- [2023.12.29; Maikuolan]: The number formatter's getSetCSV method removed and
+  replaced by a getSetJSON method.
+
+Caleb M (Maikuolan),
+December 29, 2023.
+
+=== Version/Release 2.11.0 ===
+MINOR RELEASE.
+
+- [2023.10.12; Maikuolan]: Preferred variants can now be specified to the L10N
+  handler. The arrayFromL10nToArray method, common to CIDRAM's and phpMussel's
+  codebases, as well as to the code for the DocGen scripts at both those
+  projects' documentation repositories, has been integrated to the L10N
+  handler, so that it can be removed from those codebases, and can instead be
+  called from the L10N handler, for cleaner/easier maintainability.
+
+- [2023.11.21; Bug-fix; Maikuolan]: The YAML handler's unescape method wasn't
+  unescaping correctly when escaped backslashes preceded other escapable
+  symbols; Fixed (CIDRAM/CIDRAM#532).
+
+Caleb M (Maikuolan),
+November 22, 2023.
+
+=== Version/Release 2.10.0 ===
+MINOR RELEASE.
+
+- [2023.08.18; Maikuolan]: Improved tests and documentation for the operation
+  handler.
+
+- [2023.08.28; Maikuolan]: The operation handler can now serve method calls.
+  Added guard to the events orchestrator to prevent infinite looping via
+  recursive event firing from within handlers.
+
+- [2023.09.14; Maikuolan]: Moved the version constant and the dataTraverse
+  method to an abstract class, which the other classes can then extend from,
+  due to those being common to all/most classes in the package. Added support
+  for dot notation to the L10N handler.
+
+Caleb M (Maikuolan),
+September 18, 2023.
+
+=== Version/Release 2.9.7 ===
+PATCH RELEASE.
+
+- [2023.05.13; Maikuolan]: Fixed a link.
+
+- [2023.08.16; Bug-fix; Maikuolan]: Typo in the code for handling "then"
+  statements in the operation handler's ifCompare method; Fixed.
+
+Caleb M (Maikuolan),
+August 16, 2023.
+
+=== Version/Release 2.9.6 ===
+PATCH RELEASE.
+
+- [2023.02.24; Bug-fix; Maikuolan]: The cache handler's incEntry and decEntry
+  methods weren't handling non-expiring values correctly when using flatfile
+  caching; Fixed.
+
+- [2023.03.15; Maikuolan]: The operation handler's dataTraverse method can now
+  traverse object properties.
+
+- [2023.03.16; Maikuolan]: Support for more operators added to the operation
+  handler's ifCompare method. Added a new parameter to the operation handler's
+  dataTraverse method to enable implementations to specify whether it should
+  allow or prohibit non-scalar return values.
+
+- [2023.03.18; Maikuolan]: The YAML handler's dataTraverse method synchronised
+  with the operation handler's dataTraverse method to be the same, to be able
+  to likewise have it specified whether to allow or prohibit non-scalar return
+  values and etc (might consider utilising class extensibility in a future
+  major version to reduce code duplication, but as doing that would mean that
+  classes wouldn't be able to be implemented in isolation anymore, I would
+  consider it backwards-incompatible change, so it won't happen any time sooner
+  than the next major version, at least).
+
+- [2023.03.22; Bug-fix; Maikuolan]: The YAML handler wasn't correctly dealing
+  with sequences which terminate with folded scalars; Fixed.
+
+- [2023.03.24; Maikuolan]: Added a new property to the request handler to act
+  as an object-level logger for the results of outbound requests.
+
+Caleb M (Maikuolan),
+March 24, 2023.
+
+=== Version/Release 2.9.5 ===
+PATCH RELEASE.
+
+- [2023.01.28; Bug-fix; Maikuolan]: Cache handler potentially generating
+  unexpected exceptions in some situations; Fixed.
+
+- [2023.02.13; Maikuolan]: Slightly improved performance for when using PDO.
+
+- [2023.02.21; Maikuolan]: When using the cache handler with PDO, if the size
+  of a cache entry exceeds 64KB, in order to avoid exceeding the 64KB upper
+  limit of the TEXT data type, the cache handler will now attempt to compress
+  the data prior to executing the query.
+
+- [2023.02.23; Maikuolan]: Optionally, the L10N handler can now automatically
+  determine text directionality for use by the implementation.
+
+Caleb M (Maikuolan),
+February 23, 2023.
+
+=== Version/Release 2.9.4 ===
+PATCH RELEASE.
+
+- [2022.12.15; Bug-fix; Maikuolan]: Redis shouldn't set EXPIRE for TTLs less
+  than 1; Fixed.
+
+- [2023.01.14; Bug-fix; Maikuolan]: The code for fetching all entries from the
+  cache when using Memcached as the chosen caching mechanism relied on
+  Memcached methods which haven't worked properly since several major versions
+  back from the current latest Memcached bindings. Accordingly, the cache
+  handler wasn't capable of correctly fetching all entries when using
+  Memcached. To remedy this, the code which relied upon said methods has been
+  removed, and in its place, code has been added to manually index cache keys,
+  and when fetching all entries from the cache, this manual indexing will now
+  be relied upon when using Memcached (the code for other caching mechanisms,
+  unaffected by this problem, remains unchanged).
+
+- [2023.01.16; Maikuolan]: Added a new method to the cache handler:
+  "getAllEntriesWhere" (see the documentation for more details).
+
+- [2023.01.22; Maikuolan]: Improved the defaulting used for missing plurals.
+
+Caleb M (Maikuolan),
+January 22, 2023.
+
+=== Version/Release 2.9.3 ===
+PATCH RELEASE.
+
+- [2022.10.26; Maikuolan]: The YAML handler can now handle objects when
+  reconstructing YAML data, as long as those objects implement the __toString
+  method.
+
+- [2022.11.20; Maikuolan]: Avoid packaging unnecessary files into dist.
+
+- [2022.11.22; Maikuolan]: Some of the CLDR information provided by Unicode
+  recently changed. Updated the L10N handler accordingly.
+
+Caleb M (Maikuolan),
+November 22, 2022.
+
+=== Version/Release 2.9.2 ===
+PATCH RELEASE.
+
+- [2022.10.05; Bug-fix; Maikuolan]: Fix prevents YAML handler from using
+  multiline when reconstructing values containing hashes, because multiline
+  values are normally unquoted and unescaped, thus meaning that data which
+  occurs after the hash would be treated as a comment when reprocessed.
+
+Caleb M (Maikuolan),
+October 5, 2022.
+
+=== Version/Release 2.9.1 ===
+PATCH RELEASE.
+
+- [2022.06.09; Maikuolan]: Added three new methods to the cache handler:
+  "deleteAllEntriesWhere", "incEntry", and "decEntry" (see the documentation
+  for more details).
+
+- [2022.06.16; Bug-fix; Maikuolan]: The KeyRoot parameter in the
+  iterateCallbackGeneratorInner method of the Matrix handler should not be
+  optional; Fixed.
+
+- [2022.06.19; Maikuolan]: Updated the delayed file IO class to use a faster
+  strategy for reading files when not locking those files. Added to the L10N
+  handler's supported languages.
+
+- [2022.07.07; Maikuolan]: Added Kaktovik support to the number formatter.
+
+- [2022.07.13; Maikuolan]: Added the optional ability for the cache handler to
+  attempt to enforce the permissions necessary for reading and writing files.
+
+Caleb M (Maikuolan),
+July 13, 2022.
+
+=== Version/Release 2.9.0 ===
+MINOR RELEASE.
+
+- [2022.02.19; Maikuolan]: Added the ability to the YAML handler to reconstruct
+  flows at specified depths and to switch between JSON-style and YAML-style
+  mappings/sequences based on depth. Added the ability to apply quotes to keys
+  for the YAML handler.
+
+- [2022.02.20; Maikuolan]: Added a new class to the repository, "IPHeader".
+
+- [2022.02.21; Maikuolan]: Added tests and documentation for the IP header
+  class.
+
+Caleb M (Maikuolan),
+February 21, 2022.
+
+=== Version/Release 2.8.0 ===
+MINOR RELEASE.
+
+- [2022.01.23; Maikuolan]: Provided a means to avoid some theoretical
+  problems with data reconstruction by the YAML handler.
+
+- [2022.01.28; Maikuolan]: Added the ability to reconstruct anchors to the YAML
+  handler. Added guards against invalid data types for keys to the YAML
+  handler.
+
+- [2022.01.29; Maikuolan]: Added UTF-16 and UTF-32 support to the YAML handler.
+  Added the optional ability to perform spec-compliant (un/)escaping.
+
+- [2022.01.31; Bug-fix; Maikuolan]: Fixed a small typo in one of the
+  Demojibakefier's regular expressions.
+
+- [2022.01.31; Maikuolan]: Added the ability to specify the preferred style of
+  quotes for strings for the YAML handler. Added support for hexadecimal,
+  binary, and octal number notation.
+
+- [2022.02.02; Maikuolan]: Updated the L10N handler's supported languages and
+  plural rules documentation. Added Ol Chiki support to the number formatter.
+  Added the ability to the L10N handler to automatically determine appropriate
+  integer and fraction rules to use based upon a language code specified.
+
+- [2022.02.05; Maikuolan]: Added support for null sets (mapping keys) and some
+  basic, rudimentary support for explicit tags and and related type coercion to
+  the YAML handler. Support for explicit tags currently only works on
+  individual entries, not entire blocks (I aim to implement the latter soon).
+
+- [2022.02.06; Maikuolan]: Added support for binary tags. Explicit tags can now
+  be used for both individual entries and entire blocks alike. Added support
+  for flow mapping to the YAML handler.
+
+- [2022.02.07; Maikuolan]: Added support for merging to the YAML handler.
+
+- [2022.02.11; Maikuolan]: Removed newline guard from the YAML handler (YAML is
+  allowed to exist on a single line, e.g., by using entirely inline syntax).
+  Implemented a flow control mechanism to the YAML handler, improving support
+  for flow sequences and flow mappings. Added support for flattening arrays.
+
+- [2022.02.12; Maikuolan]: Added support for calling a limited range of various
+  safe PHP functions as tags to the YAML handler.
+
+- [2022.02.13; Maikuolan]: Added the ability to assign language rules
+  automatically to the L10N handler.
+
+- [2022.02.14; Maikuolan]: Added support for chomping to the YAML handler.
+  Added support for infinity, negative infinity, and NAN to the YAML handler.
+
+Caleb M (Maikuolan),
+February 14, 2022.
+
+=== Version/Release 2.7.0 ===
+MINOR RELEASE.
+
+- [2021.08.25; Maikuolan]: Inline variables (similar to as is done with
+  Ansible) can now be used in data for the YAML handler.
+
+- [2021.09.18; Maikuolan]: The YAML handler now supports inline arrays.
+
+- [2021.10.30; Maikuolan]: Code-style cleanup: Public before private
+  properties, magic before public before private methods.
+
+- [2021.10.31; Maikuolan]: Added the ability to segregate cache data on the
+  basis of prefixes specified by the instance.
+
+Caleb M (Maikuolan),
+October 31, 2021.
+
+=== Version/Release 2.6.2 ===
+PATCH RELEASE.
+
+- [2021.07.02; Maikuolan]: Allow dots to be escaped for dataTraverse in the
+  operation handler.
+
+Caleb M (Maikuolan),
+July 2, 2021.
+
+=== Version/Release 2.6.1 ===
+PATCH RELEASE.
+
+- [2021.05.21; Maikuolan]: Adjusted the ints returned by L10N's int3Type3 so
+  they'd make more sense. Added some more languages to L10N's rules
+  documentation.
+
+- [2021.05.22; Maikuolan]: Added a public version constant to all classes,
+  since it might be needed by some implementations to ensure compatibility.
+  Improved and refactored some of the docblock comments across all classes.
+  Added an exception to the Matrix handler for when the number of dimensions
+  given to iterateCallback doesn't match the Matrix's number of dimensions.
+  Added tests for the matrix handler, the delayed file IO, the events
+  orchestrator, and the request handler classes.
+
+Caleb M (Maikuolan),
+May 22, 2021.
+
+=== Version/Release 2.6.0 ===
+MINOR RELEASE.
+
+- [2021.03.11; Maikuolan]: Added some missing return type declarations.
+
+- [2021.04.09; Maikuolan]: Added a new class to the repository, "Operation".
+
+- [2021.04.23; Bug-fix; Maikuolan]: Found a fixed an issue with function calls
+  from the dataTraverse method of the newly added Operation class.
+
+Caleb M (Maikuolan),
+April 24, 2021.
+
+=== Version/Release 2.5.0 ===
+MINOR RELEASE.
+
+- [2020.12.07; Maikuolan]: Updated the number formatter to prevent leading
+  decimal separators in the absence of representing any whole digits.
+
+- [2020.12.07; Maikuolan]: Added support for dozenal/duodecimal numerals.
+
+- [2021.01.10; Maikuolan]: Added a new class to the repository, "Request".
+
+- [2021.01.25; Maikuolan]: Added support for fullwidth numerals.
+
+- [2021.02.19; Maikuolan]: Added support for null values and folded multi-line
+  values to the YAML handler, plus some additional aliases for true and false.
+  Also updated some of the test files.
+
+- [2021.02.20; Maikuolan]: Added support for __toString and for anchors to the
+  YAML handler. Also updated some PHPDocs.
+
+- [2021.02.22; Maikuolan]: Added tests for the Demojibakefier class.
+
+Caleb M (Maikuolan),
+February 22, 2021.
+
+=== Version/Release 2.4.0 ===
+MINOR RELEASE.
+
+- [2020.11.27; Maikuolan]: Ditched external test frameworks in favour of GitHub
+  Actions. Replaced existing tests. (More work needs to eventually be done
+  towards tests. This will eventually happen at some point).
+
+- [2020.12.01; Maikuolan]: Refactored the number formatter, improving the
+  conversion of fractions between different bases, and added two new character
+  sets.
+
+- [2020.12.03; Maikuolan]: Added tests for the NumberFormatter class and also
+  added some more character sets.
+
+Caleb M (Maikuolan),
+December 4, 2020.
+
+=== Version/Release 2.3.3 ===
+PATCH RELEASE.
+
+- [2020.07.05; Maikuolan]: Slightly refactored the cache handler.
+
+- [2020.07.06; Maikuolan]: Added the ability to the cache handler to enforce
+  hard limits for key names.
+
+- [2020.07.14; Maikuolan]: Removed some accidental duplicates from the
+  Demojibakefier's supported() list.
+
+- [2020.07.17; Maikuolan]: Slightly refactored DelayedIO.
+
+- [2020.09.30; Maikuolan]: Added the ability to split strings into segments to
+  the demojibakefier.
+
+Caleb M (Maikuolan),
+September 30, 2020.
+
+=== Version/Release 2.3.2 ===
+PATCH RELEASE.
+
+- [2020.06.15; Bug-fix; Maikuolan]: Small but critical typo introduced by the
+  previous commit to the events orchestrator; Fixed and immediately pushing new
+  patch release.
+
+Caleb M (Maikuolan),
+June 15, 2020.
+
+=== Version/Release 2.3.1 ===
+PATCH RELEASE.
+
+- [2020.06.11; Maikuolan]: Slightly improved some PHPDoc annotations.
+
+- [2020.06.15; Maikuolan]: Added the ability to the events orchestrator's
+  fireEvent method to accept any number of optional parameters to be passed by
+  reference (v2 only).
+
+Caleb M (Maikuolan),
+June 15, 2020.
+
+=== Version/Release 2.3.0 ===
+MINOR RELEASE.
+
+- [2020.01.01; Bug-fix; Maikuolan]: The cache handler's PDO query template for
+  deleting expired cache entries was malformed; Fixed.
+
+- [2020.01.24; Maikuolan]: Added a new class to the repository, "Matrix".
+
+- [2020.03.09; Maikuolan]: Updated the matrix handler's documentation.
+
+Caleb M (Maikuolan),
+March 9, 2020.
+
+=== Version/Release 2.2.2 ===
+PATCH RELEASE.
+
+- [2019.12.10; Maikuolan]: Added __toString() to the ComplexStringHandler class
+  so that using the object as a string should now have the same effect as
+  calling the recompile() method.
+
+- [2019.12.26; Maikuolan]: Added some new character sets and related options to
+  the number formatter.
+
+- [2019.12.27; Bug-fix; Maikuolan]: The cache handler's mechanism for creating
+  missing tables in PDO used a malformed query and didn't work properly; Fixed.
+
+Caleb M (Maikuolan),
+December 27, 2019.
+
+=== Version/Release 2.2.1 ===
+PATCH RELEASE.
+
+- [2019.10.23; Maikuolan]: Removed some unnecessary guard code.
+
+- [2019.11.04; Maikuolan]: Updated the Cache class to use REPLACE INTO instead
+  of ON DUPLICATE KEY for SET_QUERY (SQLite and others don't properly support
+  the latter). Added the checkTablesPDO method to try to automatically create a
+  table for the Cache class instance to use when PDO is enabled.
+
+Caleb M (Maikuolan),
+November 4, 2019.
+
+=== Version/Release 2.2.0 ===
+MINOR RELEASE.
+
+- [2019.09.25; Maikuolan]: Added a new class to the repository, "Events".
+
+- [2019.09.26; peter279k]: Added tests for the ComplexStringHandler class.
+
+Caleb M (Maikuolan),
+October 2, 2019.
+
+=== Version/Release 2.1.0 ===
+MINOR RELEASE.
+
+- [2019.05.29; Maikuolan]: Added some new plural integer rules to the L10N
+  class, extending the number of languages it can potentially support.
+
+- [2019.06.27; Maikuolan]: Added a new class to the repository, "Number
+  Formatter".
+
+- [2019.08.17; Maikuolan]: Added the ability to chain together multiple L10N
+  objects via L10N's fallback mechanism.
+
+- [2019.08.23; Maikuolan]: Added a new class to the repository, "Delayed file
+  IO class".
+
+Caleb M (Maikuolan),
+August 26, 2019.
+
+=== Version/Release 2.0.0 ===
+MAJOR RELEASE (BACKWARDS INCOMPATIBLE).
+
+- [2019.05.10; Maikuolan]: Fixed some wrong PHPDoc declarations, slightly
+  refactored, and added PHP7-style type hinting and return type declarations
+  for all methods across all classes (where relevant). Changed the names of
+  some constants to better conform with PSR-1.
+
+- [2019.05.23; Maikuolan]: Completed writing all documentation for all classes
+  currently provided by the package.
+
+Caleb M (Maikuolan),
+May 29, 2019.
+
+=== Version/Release 1.1.0 ===
+MINOR RELEASE.
+
+- [2019.03.26; Maikuolan]: Added a new class to the repository, "Complex string
+  handler".
+
+- [2019.03.30; peter279k]: Added support for unit testing and added some tests
+  for the L10N and YAML classes.
+
+- [2019.04.02; Maikuolan]: Added a new class to the repository, "A simple,
+  unified cache handler".
+
+- [2019.04.09; Maikuolan]: Slightly adjusted the file reading part of the cache
+  handler to account for some potential edge-case problems on some servers.
+
+- [2019.04.15; Bug-fixes; Maikuolan]: The YAML class sometimes produced
+  extraneous whitespace on lines that define arrays when using reconstruct to
+  reconstruct YAML data from an array, and sometimes couldn't correctly process
+  subarrays inside numeric arrays; Fixed.
+  Refer github.com/Maikuolan/Common/issues/2
+
+- [2019.04.15; Maikuolan]: Added the ability to reconstruct nonprintable binary
+  to the YAML class.
+
+- [2019.04.28; Maikuolan]: Added a new class to the repository,
+  "Demojibakefier".
+
+Caleb M (Maikuolan),
+April 29, 2019.
+
+=== Version/Release 1.0.0 ===
+FIRST TAGGED RELEASE.
+
+Caleb M (Maikuolan),
+February 28, 2019.

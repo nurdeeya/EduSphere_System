@@ -4,7 +4,15 @@
 // Returns the NEW random filename on success, or an error sentence on failure.
 // (Return format is unchanged so existing callers keep working.)
 
+require_once __DIR__ . '/storage.php';
+require_once __DIR__ . '/malware_scan.php';
+require_once __DIR__ . '/../includes/audit.php';
+
 const UPLOAD_MAX_BYTES = 10 * 1024 * 1024; // 10MB
+
+// Fail closed: if the malware scanner cannot give a definite "clean", the upload is refused.
+// Only set to false on a development machine while phpMussel is not set up yet.
+const UPLOAD_SCAN_FAIL_CLOSED = true;
 
 // Default whitelist: extension => MIME types that libmagic may report for it.
 // DOCX/PPTX are ZIP containers, so some finfo versions report application/zip.
@@ -13,6 +21,17 @@ const UPLOAD_DEFAULT_TYPES = [
     'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
     'zip'  => ['application/zip', 'application/x-zip-compressed'],
 ];
+
+/** Record a blocked upload in the audit log (when a DB connection and session user exist). */
+function upload_audit_block(string $reason, string $client_name): void
+{
+    $pdo = $GLOBALS['pdo'] ?? null;
+    if (!($pdo instanceof PDO) || !isset($_SESSION['user_id'])) {
+        return;
+    }
+    $safe_name = substr((string) preg_replace('/[^A-Za-z0-9._ -]/', '_', basename($client_name)), 0, 100);
+    audit_log($pdo, (int) $_SESSION['user_id'], 'UPLOAD_BLOCKED', $reason . '; original_name=' . $safe_name);
+}
 
 function secure_file_upload($file, $upload_dir, ?array $allowed_types = null) {
     $allowed_types = $allowed_types ?? UPLOAD_DEFAULT_TYPES;
@@ -51,11 +70,32 @@ function secure_file_upload($file, $upload_dir, ?array $allowed_types = null) {
         return "Invalid file type. The file content does not match its extension.";
     }
 
-    // 4. change file name to random (to avoid overwrite & path traversal)
+    // 4. Malware scan (phpMussel) BEFORE the file is stored anywhere.
+    $scan = malware_scan_file($file['tmp_name']);
+    if ($scan['status'] === 'infected') {
+        error_log('upload blocked (malware): ' . $scan['detail']);
+        upload_audit_block('malware detected', (string) $file['name']);
+        return "The file was rejected because it may contain malware.";
+    }
+    if ($scan['status'] !== 'clean') {
+        error_log('upload scan unavailable: ' . $scan['detail']);
+        if (UPLOAD_SCAN_FAIL_CLOSED) {
+            upload_audit_block('scan unavailable: ' . $scan['detail'], (string) $file['name']);
+            return "The file could not be security-scanned right now, so it was not accepted. Please try again later or contact your administrator.";
+        }
+    }
+
+    // 5. Never store uploads inside the web root.
+    if (path_is_inside_webroot($upload_dir)) {
+        error_log('upload refused: upload directory is inside the web root: ' . $upload_dir);
+        return "File upload is not available (server storage is misconfigured).";
+    }
+
+    // 6. change file name to random (to avoid overwrite & path traversal)
     $new_filename = bin2hex(random_bytes(16)) . '.' . $ext;
 
     if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
+        mkdir($upload_dir, 0750, true);
     }
 
     $destination = rtrim($upload_dir, '/\\') . '/' . $new_filename;

@@ -19,7 +19,6 @@ const MATERIAL_TYPES = [
     'pptx' => ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip'],
     'zip'  => ['application/zip', 'application/x-zip-compressed'],
 ];
-const MATERIAL_DIR = __DIR__ . '/uploads';
 
 $user_id = (int) $_SESSION['user_id'];
 $message = '';
@@ -69,8 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->commit();
 
                 // Remove the file only if the stored name has the safe random pattern.
-                if (upload_succeeded($row['file_path']) && is_file(MATERIAL_DIR . '/' . basename($row['file_path']))) {
-                    @unlink(MATERIAL_DIR . '/' . basename($row['file_path']));
+                if (upload_succeeded($row['file_path']) && is_file(upload_storage_dir() . '/' . basename($row['file_path']))) {
+                    @unlink(upload_storage_dir() . '/' . basename($row['file_path']));
                 }
                 lec_flash('success', "Material '" . $row['title'] . "' deleted.");
                 header('Location: lecturer_materials.php');
@@ -114,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             break;
         }
 
-        $result = secure_file_upload($file, MATERIAL_DIR, MATERIAL_TYPES);
+        $result = secure_file_upload($file, upload_storage_dir(), MATERIAL_TYPES);
         if (!upload_succeeded($result)) {
             $message = is_string($result) ? $result : 'File upload failed.';
             $message_type = 'error';
@@ -133,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':title'       => $title,
                 ':description' => $description === '' ? null : $description,
                 ':file_path'   => $uploaded_name,
-                ':file_size'   => (int) filesize(MATERIAL_DIR . '/' . $uploaded_name),
+                ':file_size'   => (int) filesize(upload_storage_dir() . '/' . $uploaded_name),
             ]);
             $new_id = (int) $pdo->lastInsertId();
 
@@ -153,8 +152,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->rollBack();
             }
             error_log('lecturer_materials (upload): ' . $e->getMessage());
-            if (is_file(MATERIAL_DIR . '/' . $uploaded_name)) {
-                @unlink(MATERIAL_DIR . '/' . $uploaded_name);
+            if (is_file(upload_storage_dir() . '/' . $uploaded_name)) {
+                @unlink(upload_storage_dir() . '/' . $uploaded_name);
             }
             $message = 'A system error occurred. Please try again later.';
             $message_type = 'error';

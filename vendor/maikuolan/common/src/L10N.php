@@ -1,0 +1,1118 @@
+<?php
+/**
+ * L10N handler (last modified: 2026.03.18).
+ *
+ * This file is a part of the "common classes package", utilised by a number of
+ * packages and projects, including CIDRAM and phpMussel.
+ * @link https://github.com/Maikuolan/Common
+ *
+ * License: GNU/GPLv2
+ * @see LICENSE.txt
+ *
+ * "COMMON CLASSES PACKAGE", as well as the earliest iteration and deployment
+ * of this class, COPYRIGHT 2019 and beyond by Caleb Mazalevskis (Maikuolan).
+ */
+
+namespace Maikuolan\Common;
+
+class L10N extends CommonAbstract implements \Countable
+{
+    /**
+     * @var array|\ArrayAccess All relevant L10N data.
+     */
+    public $Data = [];
+
+    /**
+     * @var array|\ArrayAccess|\Maikuolan\Common\L10N All relevant fallback L10N data.
+     */
+    public $Fallback = [];
+
+    /**
+     * @var string The directionality for the language.
+     */
+    public $Directionality = '';
+
+    /**
+     * @var string The directionality for the language.
+     */
+    public $FallbackDirectionality = '';
+
+    /**
+     * @var string Useful in case a string might have variants available.
+     */
+    public $PreferredVariant = '';
+
+    /**
+     * @var string The pluralisation rule to use for integers.
+     */
+    private $IntegerRule = 'int1';
+
+    /**
+     * @var string The pluralisation rule to use for fractions.
+     */
+    private $FractionRule = 'int1';
+
+    /**
+     * @var string The pluralisation rule to use for integers for the fallback.
+     */
+    private $FallbackIntegerRule = 'int1';
+
+    /**
+     * @var string The pluralisation rule to use for fractions for the fallback.
+     */
+    private $FallbackFractionRule = 'int1';
+
+    /**
+     * Constructor.
+     *
+     * @param array|\ArrayAccess $Data The L10N data.
+     * @param array|\ArrayAccess|\Maikuolan\Common\L10N $Fallback The fallback L10N data (optional).
+     * @throws InvalidArgumentException when an incorrect parameter type is supplied.
+     * @return void
+     */
+    public function __construct($Data = [], $Fallback = [])
+    {
+        if (!(\is_array($Data) || $Data instanceof \ArrayAccess)) {
+            throw new \InvalidArgumentException('First parameter of __construct in \Maikuolan\Common\L10N must be an array, or an instance of \ArrayAccess. Parameter supplied was ' . \gettype($Data));
+        }
+        if (!(\is_array($Fallback) || $Fallback instanceof \ArrayAccess || $Fallback instanceof \Maikuolan\Common\L10N)) {
+            throw new \InvalidArgumentException('Second parameter of __construct in \Maikuolan\Common\L10N must be an array, an instance of \ArrayAccess, or an instance of \Maikuolan\Common\L10N. Parameter supplied was ' . \gettype($Fallback));
+        }
+        $this->Data = $Data;
+        $this->Fallback = $Fallback;
+        if (!empty($Data['IntegerRule'])) {
+            if (\method_exists($this, $Data['IntegerRule'])) {
+                $this->IntegerRule = $Data['IntegerRule'];
+            } else {
+                $this->IntegerRule = $this->getIntegerRule($Data['IntegerRule']);
+            }
+        }
+        if (!empty($Data['FractionRule'])) {
+            if (\method_exists($this, $Data['FractionRule'])) {
+                $this->FractionRule = $Data['FractionRule'];
+            } else {
+                $this->FractionRule = $this->getFractionRule($Data['FractionRule']);
+            }
+        }
+        if (\is_array($Fallback) || $Fallback instanceof \ArrayAccess) {
+            if (!empty($Fallback['IntegerRule'])) {
+                if (\method_exists($this, $Fallback['IntegerRule'])) {
+                    $this->FallbackIntegerRule = $Fallback['IntegerRule'];
+                } else {
+                    $this->FallbackIntegerRule = $this->getIntegerRule($Fallback['IntegerRule']);
+                }
+            }
+            if (!empty($Fallback['FractionRule'])) {
+                if (\method_exists($this, $Fallback['FractionRule'])) {
+                    $this->FallbackFractionRule = $Fallback['FractionRule'];
+                } else {
+                    $this->FallbackFractionRule = $this->getFractionRule($Fallback['FractionRule']);
+                }
+            }
+        }
+    }
+
+    /**
+     * Fetch an L10N string from a range of possible plural forms.
+     *
+     * @param int|float $Number The quantity of the subject.
+     * @param string $String Which L10N strings we're fetching from.
+     * @return string The appropriate plural form as determined.
+     */
+    public function getPlural($Number, string $String): string
+    {
+        if (\strpos($String, '.') === false) {
+            if (isset($this->Data[$String])) {
+                $Choices = $this->Data[$String];
+                $IntegerRule = $this->IntegerRule;
+                $FractionRule = $this->FractionRule;
+            } elseif ($this->Fallback instanceof \Maikuolan\Common\L10N) {
+                return $this->Fallback->getPlural($Number, $String);
+            } elseif (isset($this->Fallback[$String])) {
+                $Choices = $this->Fallback[$String];
+                $IntegerRule = $this->FallbackIntegerRule;
+                $FractionRule = $this->FallbackFractionRule;
+            } else {
+                return '';
+            }
+        } else {
+            if (($Try = $this->dataTraverse($this->Data, $String, true)) !== '') {
+                $Choices = $Try;
+                $IntegerRule = $this->IntegerRule;
+                $FractionRule = $this->FractionRule;
+            } elseif ($this->Fallback instanceof \Maikuolan\Common\L10N) {
+                return $this->Fallback->getPlural($Number, $String);
+            } elseif (($Try = $this->dataTraverse($this->Fallback, $String, true)) !== '') {
+                $Choices = $Try;
+                $IntegerRule = $this->FallbackIntegerRule;
+                $FractionRule = $this->FallbackFractionRule;
+            } else {
+                return '';
+            }
+        }
+        if (\is_string($Choices)) {
+            return $Choices;
+        }
+        if (\is_float($Number)) {
+            $Choice = $this->{$FractionRule}($Number);
+        } elseif (\is_int($Number)) {
+            $Choice = $this->{$IntegerRule}($Number);
+        } else {
+            $Choice = 0;
+        }
+        if (isset($Choices[$Choice])) {
+            $Out = $Choices[$Choice];
+        } else {
+            $Out = $Number > 1 ? \array_pop($Choices) : \array_shift($Choices);
+        }
+        if (\is_array($Out)) {
+            $Out = ($this->PreferredVariant !== '' && isset($Out[$this->PreferredVariant])) ? $Out[$this->PreferredVariant] : \array_shift($Out);
+        }
+        return \is_string($Out) ? $Out : '';
+    }
+
+    /**
+     * Safely fetch an L10N string.
+     *
+     * @param string $String The L10N string to fetch.
+     * @return string The fetched L10N string.
+     */
+    public function getString(string $String): string
+    {
+        if (\strpos($String, '.') === false) {
+            if (isset($this->Data[$String])) {
+                $Out = $this->Data[$String];
+            } elseif ($this->Fallback instanceof \Maikuolan\Common\L10N) {
+                $Out = $this->Fallback->getString($String);
+            } else {
+                $Out = isset($this->Fallback[$String]) ? $this->Fallback[$String] : '';
+            }
+        } elseif (($Out = $this->dataTraverse($this->Data, $String, true)) === '') {
+            $Out = ($this->Fallback instanceof \Maikuolan\Common\L10N) ? $this->Fallback->getString($String) : $this->dataTraverse($this->Fallback, $String, true);
+        }
+        if (\is_array($Out)) {
+            $Out = ($this->PreferredVariant !== '' && isset($Out[$this->PreferredVariant])) ? $Out[$this->PreferredVariant] : \array_shift($Out);
+        }
+        return \is_string($Out) ? $Out : '';
+    }
+
+    /**
+     * Parses an array of L10N data references from L10N data to an array.
+     *
+     * @param string|array $References The L10N data references.
+     * @return array An array of L10N data.
+     */
+    public function arrayFromL10nToArray($References): array
+    {
+        if (!\is_array($References) && !($References instanceof \IteratorAggregate)) {
+            $References = [$References];
+        }
+        $Out = [];
+        foreach ($References as $Reference) {
+            $Try = '';
+            if (isset($this->Data[$Reference])) {
+                $Try = $this->Data[$Reference];
+            } elseif (\is_array($this->Fallback) || $this->Fallback instanceof \ArrayAccess) {
+                if (isset($this->Fallback[$Reference])) {
+                    $Try = $this->Fallback[$Reference];
+                }
+            } elseif ($this->Fallback instanceof \Maikuolan\Common\L10N) {
+                if (isset($this->Fallback->Data[$Reference])) {
+                    $Try = $this->Fallback->Data[$Reference];
+                } elseif ((\is_array($this->Fallback->Fallback) || $this->Fallback->Fallback instanceof \ArrayAccess) && isset($this->Fallback->Fallback[$Reference])) {
+                    $Try = $this->Fallback->Fallback[$Reference];
+                }
+            }
+            if ($Try === '') {
+                if (($SPos = \strpos($Reference, ' ')) !== '') {
+                    $Try = (($TryFrom = $this->getString(\substr($Reference, 0, $SPos))) !== '' && \strpos($TryFrom, '%s') !== false) ? \sprintf($TryFrom, \substr($Reference, $SPos + 1)) : $Reference;
+                } else {
+                    $Try = $Reference;
+                }
+            }
+            $Reference = (!\is_array($Try) || \preg_match('~^[a-z]{2,3}(?:-[A-Z][A-Za-z]{1,3})?$~', \key($Try))) ? [$Try] : $Try;
+            foreach ($Reference as $Key => $Value) {
+                if (\is_array($Value)) {
+                    $Value = $this->PreferredVariant !== '' && isset($Value[$this->PreferredVariant]) ? $Value[$this->PreferredVariant] : \array_shift($Value);
+                    if (!\is_string($Value)) {
+                        $Value = '';
+                    }
+                }
+                if (!\is_string($Key)) {
+                    $Out[] = $Value;
+                    continue;
+                }
+                $Out[$Key] = $Value;
+            }
+        }
+        return $Out;
+    }
+
+    /**
+     * For when there aren't multiple forms.
+     *
+     * @return int Always 0, since always the same.
+     */
+    private function int1(): int
+    {
+        return 0;
+    }
+
+    /**
+     * Two grammatical numbers, type one. For e.g., Cebuano, Filipino, Tagalog.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Other form.
+     */
+    private function int2Type1(int $Int): int
+    {
+        $Tail = $Int % 10;
+        return ($Tail === 4 || $Tail === 6 || $Tail === 9) ? 1 : 0;
+    }
+
+    /**
+     * Two grammatical numbers, type two. For e.g., Icelandic, Macedonian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Other form.
+     */
+    private function int2Type2(int $Int): int
+    {
+        $Tail = $Int % 10;
+        $Tail2 = $Int % 100;
+        return ($Tail === 1 && $Tail2 !== 11) ? 0 : 1;
+    }
+
+    /**
+     * Two grammatical numbers, type three. For e.g., Armenian, Bangla,
+     * French, Gujarati, Hindi, Zulu.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Other form.
+     */
+    private function int2Type3(int $Int): int
+    {
+        return ($Int === 0 || $Int === 1) ? 0 : 1;
+    }
+
+    /**
+     * Two grammatical numbers, type four. For e.g., Bulgarian, Danish,
+     * Dutch, English, Estonian, German, Greek, Italian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Other form.
+     */
+    private function int2Type4(int $Int): int
+    {
+        return ($Int === 1) ? 0 : 1;
+    }
+
+    /**
+     * Three grammatical numbers, type one. For e.g., Prussian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Other form. 2: Zero form.
+     */
+    private function int3Type1(int $Int): int
+    {
+        $Tail = $Int % 10;
+        $Tail2 = $Int % 100;
+        if ($Tail === 0 || ($Tail2 >= 10 && $Tail2 <= 20)) {
+            return 2;
+        }
+        return ($Tail === 1) ? 0 : 1;
+    }
+
+    /**
+     * Three grammatical numbers, type two. For e.g., Colognian, Langi.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Other form. 2: Zero form.
+     */
+    private function int3Type2(int $Int): int
+    {
+        if ($Int === 0) {
+            return 2;
+        }
+        return ($Int === 1) ? 0 : 1;
+    }
+
+    /**
+     * Three grammatical numbers, type three. For e.g., Inuktitut, Sami,
+     * Santali, Fijian, Hebrew.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Other form.
+     */
+    private function int3Type3(int $Int): int
+    {
+        if ($Int === 2) {
+            return 1;
+        }
+        return ($Int === 1) ? 0 : 2;
+    }
+
+    /**
+     * Three grammatical numbers, type four. For e.g., Russian, Ukrainian,
+     * Bosnian, Croatian, Serbian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Many form.
+     */
+    private function int3Type4(int $Int): int
+    {
+        $Tail = $Int % 10;
+        $Tail2 = $Int % 100;
+        if ($Tail === 1 && $Tail2 !== 11) {
+            return 0;
+        }
+        return ($Tail >= 2 && $Tail <= 4 && ($Tail2 < 10 || $Tail2 >= 20)) ? 1 : 2;
+    }
+
+    /**
+     * Three grammatical numbers, type five. For e.g., Polish.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Many form.
+     */
+    private function int3Type5(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        $Tail = $Int % 10;
+        $Tail2 = $Int % 100;
+        return ($Tail >= 2 && $Tail <= 4 && ($Tail2 < 10 || $Tail2 >= 20)) ? 1 : 2;
+    }
+
+    /**
+     * Three grammatical numbers, type six. For e.g., Lithuanian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Other form.
+     */
+    private function int3Type6(int $Int): int
+    {
+        $Tail = $Int % 10;
+        $Tail2 = $Int % 100;
+        if ($Tail === 0 || ($Tail2 >= 10 && $Tail2 <= 20)) {
+            return 2;
+        }
+        return ($Tail === 1) ? 0 : 1;
+    }
+
+    /**
+     * Three grammatical numbers, type seven. For e.g., Tachelhit.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Other form.
+     */
+    private function int3Type7(int $Int): int
+    {
+        if ($Int > 10) {
+            return 2;
+        }
+        return ($Int > 1) ? 1 : 0;
+    }
+
+    /**
+     * Three grammatical numbers, type eight. For e.g., Moldavian, Romanian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Other form.
+     */
+    private function int3Type8(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        $Tail = $Int % 100;
+        if ($Int < 20 || ($Tail > 1 && $Tail < 20)) {
+            return 1;
+        }
+        return 2;
+    }
+
+    /**
+     * Three grammatical numbers, type nine. For e.g., Czech, Slovak.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Other form.
+     */
+    private function int3Type9(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        return ($Int >= 2 && $Int <= 4) ? 1 : 2;
+    }
+
+    /**
+     * Three grammatical numbers, type nine. For e.g., Quenya, Tokelauan.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Other form.
+     */
+    private function int3Type10(int $Int): int
+    {
+        if ($Int === 2) {
+            return 1;
+        }
+        return $Int > 2 ? 2 : 0;
+    }
+
+    /**
+     * Four grammatical numbers, type one. For e.g., Manx.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Other form.
+     */
+    private function int4Type1(int $Int): int
+    {
+        $Tail = $Int % 10;
+        if ($Tail === 1) {
+            return 0;
+        }
+        if ($Tail === 2) {
+            return 1;
+        }
+        return (($Int % 20) === 0) ? 2 : 3;
+    }
+
+    /**
+     * Four grammatical numbers, type two. For e.g., Gaelic.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Other form.
+     */
+    private function int4Type2(int $Int): int
+    {
+        if ($Int === 0 || $Int > 19) {
+            return 3;
+        }
+        $Tail = $Int % 10;
+        if ($Tail === 1) {
+            return 0;
+        }
+        if ($Tail === 2) {
+            return 1;
+        }
+        return 2;
+    }
+
+    /**
+     * Four grammatical numbers, type three. For e.g., Breton.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Other form.
+     */
+    private function int4Type3(int $Int): int
+    {
+        $Tail = $Int % 10;
+        $Tail2 = $Int % 100;
+        if ($Tail2 < 10 || ($Tail2 > 20 && $Tail2 < 70) || ($Tail2 > 80 && $Tail2 < 90)) {
+            if ($Tail === 1) {
+                return 0;
+            }
+            if ($Tail === 2) {
+                return 1;
+            }
+            if ($Tail === 3 || $Tail === 4 || $Tail === 9) {
+                return 2;
+            }
+        }
+        return 3;
+    }
+
+    /**
+     * Four grammatical numbers, type four. For e.g., Sorbian, Slovenian.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Other form.
+     */
+    private function int4Type4(int $Int): int
+    {
+        $Tail2 = $Int % 100;
+        if ($Tail2 === 1) {
+            return 0;
+        }
+        if ($Tail2 === 2) {
+            return 1;
+        }
+        if ($Tail2 === 3 || $Tail2 === 4) {
+            return 2;
+        }
+        return 3;
+    }
+
+    /**
+     * Four grammatical numbers, type five. (Not currently used).
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Many form. 3: Other form.
+     */
+    private function int4Type5(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        if ($Int === 2) {
+            return 1;
+        }
+        if ($Int > 19 && ($Int % 10) === 0) {
+            return 2;
+        }
+        return 3;
+    }
+
+    /**
+     * Four grammatical numbers, type six. (Not currently used).
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Few form. 2: Many form. 3: Other form.
+     */
+    private function int4Type6(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        $Tail2 = $Int % 100;
+        if ($Tail2 > 10 && $Tail2 < 20) {
+            return 2;
+        }
+        if ($Int === 0 || ($Tail2 > 1 && $Tail2 < 11)) {
+            return 1;
+        }
+        return 3;
+    }
+
+    /**
+     * Four grammatical numbers, type seven. For e.g., Na'vi.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Trial form. 3: Other form.
+     */
+    private function int4Type7(int $Int): int
+    {
+        if ($Int === 2) {
+            return 1;
+        }
+        if ($Int === 3) {
+            return 2;
+        }
+        return $Int > 3 ? 3 : 0;
+    }
+
+    /**
+     * Five grammatical numbers, type one. For e.g., Irish.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Many form. 4: Other form.
+     */
+    private function int5Type1(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        if ($Int === 2) {
+            return 1;
+        }
+        if ($Int >= 3 && $Int <= 6) {
+            return 2;
+        }
+        if ($Int >= 7 && $Int <= 10) {
+            return 3;
+        }
+        return 4;
+    }
+
+    /**
+     * Five grammatical numbers, type two. For e.g., Maltese.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Many form. 4: Other form.
+     */
+    private function int5Type2(int $Int): int
+    {
+        if ($Int === 1) {
+            return 0;
+        }
+        if ($Int === 2) {
+            return 1;
+        }
+        $Tail2 = $Int % 100;
+        if ($Int === 0 || ($Tail2 > 2 && $Tail2 < 11)) {
+            return 2;
+        }
+        if ($Tail2 > 10 && $Tail2 < 20) {
+            return 3;
+        }
+        return 4;
+    }
+
+    /**
+     * Six grammatical numbers, type one. For e.g., Arabic.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Few form. 3: Many form. 4: Other form. 5: Zero form.
+     */
+    private function int6Type1(int $Int): int
+    {
+        if ($Int === 0) {
+            return 5;
+        }
+        if ($Int === 1) {
+            return 0;
+        }
+        if ($Int === 2) {
+            return 1;
+        }
+        $Tail2 = $Int % 100;
+        if ($Tail2 > 10) {
+            return 3;
+        }
+        if ($Tail2 < 3) {
+            return 4;
+        }
+        return 2;
+    }
+
+    /**
+     * Six grammatical numbers, type two. For e.g., Welsh.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Trial form. 3: Many form. 4: Other form. 5: Zero form.
+     */
+    private function int6Type2(int $Int): int
+    {
+        if ($Int === 0) {
+            return 5;
+        }
+        if ($Int === 1) {
+            return 0;
+        }
+        if ($Int === 2) {
+            return 1;
+        }
+        if ($Int === 3) {
+            return 2;
+        }
+        if ($Int === 6) {
+            return 3;
+        }
+        return 4;
+    }
+
+    /**
+     * Six grammatical numbers, type three. For e.g., Cornish.
+     *
+     * @param int $Int The plurality/number of things.
+     * @return int 0: Singular form. 1: Dual form. 2: Trial form. 3: Other form. 4: Many form. 5: Zero form.
+     */
+    private function int6Type3(int $Int): int
+    {
+        if ($Int === 0) {
+            return 5;
+        }
+        if ($Int === 1) {
+            return 0;
+        }
+        $Tail = $Int % 10;
+        if ($Tail === 1) {
+            return 4;
+        }
+        if ($Tail === 2) {
+            return 1;
+        }
+        if ($Tail === 3) {
+            return 2;
+        }
+        return 3;
+    }
+
+    /**
+     * Two fraction forms, type one. For e.g., Armenian, Danish, French, Portuguese.
+     *
+     * @param float $Fraction The fraction of things.
+     * @return int 0: Singular form. 1: Other form.
+     */
+    private function fraction2Type1(float $Fraction): int
+    {
+        return ($Fraction >= 2) ? 1 : 0;
+    }
+
+    /**
+     * Two fraction forms, type two. For e.g., Amharic, Bangla, Hindi.
+     *
+     * @param float $Fraction The fraction of things.
+     * @return int 0: Singular form. 1: Other form.
+     */
+    private function fraction2Type2(float $Fraction): int
+    {
+        return ($Fraction >= 1) ? 1 : 0;
+    }
+
+    /**
+     * Determine an appropriate integer rule to use based upon the specified
+     * ISO 639-1/639-2/639-3 language code (two-digit code preferred wherever
+     * available).
+     * @link https://www.loc.gov/standards/iso639-2/php/code_list.php
+     * @link https://cldr.unicode.org/index/cldr-spec/plural-rules
+     * @link https://www.unicode.org/cldr/charts/47/supplemental/language_plural_rules.html
+     *
+     * @param string $Code An ISO 639-1/639-2 language code.
+     * @return string An appropriate integer rule to use.
+     */
+    public function getIntegerRule(string $Code): string
+    {
+        /** For different rules based on region, country, or dialect. */
+        if (($Pos = \strpos($Code, '-')) !== false) {
+            if ($Code === 'pt-BR') {
+                return 'int2Type3';
+            }
+
+            /** Try falling back to standard codes. */
+            $Code = \substr($Code, 0, $Pos);
+        }
+
+        if (\in_array($Code, ['ceb', 'fil', 'tl'], true)) {
+            return 'int2Type1';
+        }
+
+        if (\in_array($Code, ['is', 'mk'], true)) {
+            return 'int2Type2';
+        }
+
+        if (\in_array($Code, [
+            'ak',
+            'am',
+            'as',
+            'bh',
+            'bho',
+            'bn',
+            'doi',
+            'fa',
+            'ff',
+            'fr',
+            'gu',
+            'guw',
+            'hi',
+            'hy',
+            'kab',
+            'kn',
+            'ln',
+            'mg',
+            'nso',
+            'pa',
+            'si',
+            'ti',
+            'tlh',
+            'wa',
+            'zu'
+        ], true)) {
+            return 'int2Type3';
+        }
+
+        if (\in_array($Code, [
+            'af',
+            'an',
+            'asa',
+            'ast',
+            'az',
+            'bal',
+            'bem',
+            'bez',
+            'bg',
+            'brx',
+            'ca',
+            'ce',
+            'cgg',
+            'chr',
+            'da',
+            'de',
+            'dv',
+            'ee',
+            'el',
+            'en',
+            'eo',
+            'es',
+            'et',
+            'eu',
+            'fi',
+            'fo',
+            'fur',
+            'fy',
+            'gl',
+            'gsw',
+            'ha',
+            'haw',
+            'hu',
+            'ia',
+            'io',
+            'it',
+            'jgo',
+            'jmc',
+            'ka',
+            'kaj',
+            'kcg',
+            'kg',
+            'kk',
+            'kkj',
+            'kl',
+            'ks',
+            'ksb',
+            'ktu',
+            'ku',
+            'ky',
+            'lb',
+            'lg',
+            'lij',
+            'ltg',
+            'lv',
+            'mas',
+            'mgo',
+            'mi',
+            'mkw',
+            'ml',
+            'mn',
+            'mr',
+            'nah',
+            'nb',
+            'nd',
+            'ne',
+            'nl',
+            'nn',
+            'nnh',
+            'no',
+            'nr',
+            'ny',
+            'nyn',
+            'om',
+            'or',
+            'os',
+            'pap',
+            'ps',
+            'pt',
+            'rm',
+            'rof',
+            'rwk',
+            'saq',
+            'sc',
+            'scn',
+            'sco',
+            'sd',
+            'seh',
+            'sjn',
+            'sm',
+            'sn',
+            'so',
+            'sq',
+            'ss',
+            'ssy',
+            'st',
+            'sv',
+            'sw',
+            'syr',
+            'ta',
+            'te',
+            'teo',
+            'tig',
+            'tk',
+            'tn',
+            'tr',
+            'ts',
+            'ug',
+            'ur',
+            'uz',
+            've',
+            'vo',
+            'vun',
+            'wae',
+            'xh',
+            'xog',
+            'yi',
+            'yom'
+        ], true)) {
+            return 'int2Type4';
+        }
+
+        if ($Code === 'prg') {
+            return 'int3Type1';
+        }
+
+        if (\in_array($Code, ['ksh', 'lag'], true)) {
+            return 'int3Type2';
+        }
+
+        if (\in_array($Code, ['fj', 'he', 'iu', 'naq', 'sat', 'se', 'sma', 'smj', 'smn', 'sms'], true)) {
+            return 'int3Type3';
+        }
+
+        if (\in_array($Code, ['be', 'bs', 'hr', 'ru', 'sh', 'sr', 'uk'], true)) {
+            return 'int3Type4';
+        }
+
+        if ($Code === 'pl') {
+            return 'int3Type5';
+        }
+
+        if ($Code === 'lt') {
+            return 'int3Type6';
+        }
+
+        if ($Code === 'shi') {
+            return 'int3Type7';
+        }
+
+        if (\in_array($Code, ['ro', 'mo'], true)) {
+            return 'int3Type8';
+        }
+
+        if (\in_array($Code, ['cs', 'sk'], true)) {
+            return 'int3Type9';
+        }
+
+        if (\in_array($Code, ['qya', 'tkl'], true)) {
+            return 'int3Type10';
+        }
+
+        if ($Code === 'gv') {
+            return 'int4Type1';
+        }
+
+        if ($Code === 'gd') {
+            return 'int4Type2';
+        }
+
+        if ($Code === 'br') {
+            return 'int4Type3';
+        }
+
+        if (\in_array($Code, ['dsb', 'hsb', 'sl'], true)) {
+            return 'int4Type4';
+        }
+
+        if ($Code === 'ga') {
+            return 'int5Type1';
+        }
+
+        if ($Code === 'mt') {
+            return 'int5Type2';
+        }
+
+        if ($Code === 'ar') {
+            return 'int6Type1';
+        }
+
+        if ($Code === 'cy') {
+            return 'int6Type2';
+        }
+
+        if ($Code === 'kw') {
+            return 'int6Type3';
+        }
+
+        /** Default rule. */
+        return 'int1';
+    }
+
+    /**
+     * Determine an appropriate fraction rule to use based upon the specified
+     * ISO 639-1/639-2/639-3 language code (two-digit code preferred wherever
+     * available).
+     * @link https://www.loc.gov/standards/iso639-2/php/code_list.php
+     * @link https://cldr.unicode.org/index/cldr-spec/plural-rules
+     * @link https://www.unicode.org/cldr/charts/47/supplemental/language_plural_rules.html
+     *
+     * @param string $Code An ISO 639-1/639-2 language code.
+     * @return string An appropriate fraction rule to use.
+     */
+    public function getFractionRule(string $Code): string
+    {
+        /** For different rules based on region, country, or dialect. */
+        if (($Pos = \strpos($Code, '-')) !== false) {
+            if ($Code === 'pt-BR') {
+                return 'fraction2Type1';
+            }
+
+            /** Try falling back to standard codes. */
+            $Code = \substr($Code, 0, $Pos);
+        }
+
+        if (\in_array($Code, ['da', 'ff', 'fr', 'hy', 'kab', 'lag'], true)) {
+            return 'fraction2Type1';
+        }
+
+        if (\in_array($Code, ['am', 'as', 'bn', 'doi', 'fa', 'gu', 'he', 'hi', 'kn', 'shi', 'zu'], true)) {
+            return 'fraction2Type2';
+        }
+
+        /** Default rule. */
+        return 'int1';
+    }
+
+    /**
+     * Determine the directionality for the specified ISO 639-1/639-2 language code.
+     *
+     * @param string $Code An ISO 639-1/639-2 language code.
+     * @return string The directionality (either ltr or rtl).
+     */
+    public function getDirectionality(string $Code): string
+    {
+        /** Right-to-left per locale. */
+        if ($Code === 'pa-PK') {
+            return 'rtl';
+        }
+
+        if (($Pos = \strpos($Code, '-')) !== false) {
+            /** @link https://en.wikipedia.org/wiki/ISO_15924 */
+            if (\preg_match('~-([A-Z][a-z]{3}|\d{3})$~', $Code, $Script) && !\preg_match('~^(0[5679]0|095|1(?:[034]3|20|45)|2(?:[029]1|[18]8|84|92)|3(?:31|80)|4(?:1[0-3]|99)|5(?:0[0-4]|[259]0)|6[12]0|9[0-49]\d)$~', $Script[1])) {
+                if (\preg_match('~^(?:1\d+|305|4(?:03|38)|A(?:dlm|rab|rmi|vst)|C(?:hrs|prt)|Elym|Gara|H(?:atr|ebr|ung)|K(?:har|its)|Lydi|M(?:an[di]|end|er[co])|N(?:arb|bat|koo|shu)|Orkh|P(?:alm|hl[ip]|hnx|rti)|Rohg|S(?:amr|arb|idt|ogo|yrc)|T(?:haa|odr)|Yezi)$~', $Script[1])) {
+                    return 'rtl';
+                }
+                return 'ltr';
+            }
+
+            $Code = \substr($Code, 0, $Pos);
+        }
+
+        /** Right-to-left. */
+        if (\in_array($Code, ['ar', 'arc', 'arz', 'az', 'ckb', 'dv', 'fa', 'ha', 'he', 'khw', 'ks', 'ku', 'nqo', 'ps', 'sam', 'sd', 'syc', 'syr', 'ug', 'ur', 'uz', 'yi'], true)) {
+            return 'rtl';
+        }
+
+        /** Left-to-right. */
+        return 'ltr';
+    }
+
+    /**
+     * Assign rules automatically.
+     *
+     * @param string $Code An ISO 639-1/639-2 language code.
+     * @param string $FallbackCode An ISO 639-1/639-2 language code.
+     * @return void
+     */
+    public function autoAssignRules(string $Code, string $FallbackCode = ''): void
+    {
+        if ($Code !== '') {
+            $this->IntegerRule = $this->getIntegerRule($Code);
+            $this->FractionRule = $this->getFractionRule($Code);
+            $this->Directionality = $this->getDirectionality($Code);
+        }
+        if ($FallbackCode !== '') {
+            $this->FallbackIntegerRule = $this->getIntegerRule($FallbackCode);
+            $this->FallbackFractionRule = $this->getFractionRule($FallbackCode);
+            $this->FallbackDirectionality = $this->getDirectionality($FallbackCode);
+        }
+    }
+
+    /**
+     * Count L10N data.
+     *
+     * @return int The number of elements in the L10N data array.
+     */
+    public function count(): int
+    {
+        return \count($this->Data);
+    }
+}

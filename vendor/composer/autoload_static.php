@@ -7,9 +7,17 @@ namespace Composer\Autoload;
 class ComposerStaticInit2390d294247a7a1b3cd40cce04876709
 {
     public static $prefixLengthsPsr4 = array (
+        'p' =>
+        array (
+            'phpMussel\\Core\\' => 15,
+        ),
         'R' =>
         array (
             'RobThree\\Auth\\' => 14,
+        ),
+        'M' =>
+        array (
+            'Maikuolan\\Common\\' => 17,
         ),
         'D' =>
         array (
@@ -22,9 +30,17 @@ class ComposerStaticInit2390d294247a7a1b3cd40cce04876709
     );
 
     public static $prefixDirsPsr4 = array (
+        'phpMussel\\Core\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpmussel/core/src',
+        ),
         'RobThree\\Auth\\' =>
         array (
             0 => __DIR__ . '/..' . '/robthree/twofactorauth/lib',
+        ),
+        'Maikuolan\\Common\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/maikuolan/common/src',
         ),
         'DASPRiD\\Enum\\' =>
         array (
